@@ -1,4 +1,4 @@
-/* 272 · 爬楼梯 II
+/** 272 · 爬楼梯 II
 https://www.lintcode.com/problem/272
 
 描述

@@ -1,4 +1,4 @@
-/* https://www.lintcode.com/problem/285/
+/** https://www.lintcode.com/problem/285/
 
 285 · 高楼大厦
 

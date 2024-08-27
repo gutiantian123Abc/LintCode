@@ -1,4 +1,4 @@
-/*
+/**
 https://www.lintcode.com/problem/1560
 
 1560 · 最小字符串

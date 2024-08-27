@@ -1,4 +1,4 @@
-/* 
+/**
 https://www.lintcode.com/problem/693
 
 693 · 移掉K位数字

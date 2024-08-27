@@ -1,4 +1,4 @@
-/* 440 · 背包问题（三）
+/** 440 · 背包问题（三）
 https://www.lintcode.com/problem/440
 
 描述

@@ -1,4 +1,4 @@
-/*
+/**
 https://www.lintcode.com/problem/1201
 
 1201 · 下一个更大的数 II

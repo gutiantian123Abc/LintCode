@@ -1,4 +1,4 @@
-/* 420 · 报数
+/** 420 · 报数
 https://www.lintcode.com/problem/420/
 
 描述

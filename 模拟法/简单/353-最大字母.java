@@ -1,4 +1,4 @@
-/* 353 · 最大字母
+/** 353 · 最大字母
 https://www.lintcode.com/problem/353
 
 描述

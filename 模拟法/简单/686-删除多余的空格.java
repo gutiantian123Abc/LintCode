@@ -1,4 +1,4 @@
-/* 686 · 删除多余的空格
+/** 686 · 删除多余的空格
 https://www.lintcode.com/problem/686
 
 描述

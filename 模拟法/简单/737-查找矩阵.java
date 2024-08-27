@@ -1,4 +1,4 @@
-/* 737 · 查找矩阵
+/** 737 · 查找矩阵
 https://www.lintcode.com/problem/737
 
 描述

@@ -1,4 +1,4 @@
-/* 156 · 合并区间
+/** 156 · 合并区间
 https://www.lintcode.com/problem/156/
 
 描述

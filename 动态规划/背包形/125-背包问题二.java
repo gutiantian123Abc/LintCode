@@ -1,4 +1,4 @@
-/*  125 · 背包问题（二）
+/**  125 · 背包问题（二）
 https://www.lintcode.com/problem/125/
 
 描述

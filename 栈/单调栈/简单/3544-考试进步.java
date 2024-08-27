@@ -1,4 +1,4 @@
-/* https://www.lintcode.com/problem/3544
+/** https://www.lintcode.com/problem/3544
 3544 · 考试进步
 
 描述

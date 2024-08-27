@@ -1,4 +1,4 @@
-/* https://www.lintcode.com/problem/563
+/** https://www.lintcode.com/problem/563
 563 · 背包问题五
 描述
 给出 n 个物品, 以及一个数组, nums[i] 代表第i个物品的大小, 

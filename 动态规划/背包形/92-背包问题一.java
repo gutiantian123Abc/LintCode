@@ -1,4 +1,4 @@
-/* 92 · 背包问题
+/** 92 · 背包问题
 https://www.lintcode.com/problem/92/
 
 

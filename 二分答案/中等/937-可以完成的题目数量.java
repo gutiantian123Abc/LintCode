@@ -1,4 +1,4 @@
-/* 937 · 可以完成的题目数量
+/** 937 · 可以完成的题目数量
 https://www.lintcode.com/problem/937
 
 描述

@@ -1,4 +1,4 @@
-/* 1509 · 柠檬水找零
+/** 1509 · 柠檬水找零
 https://www.lintcode.com/problem/1509/
 
 描述

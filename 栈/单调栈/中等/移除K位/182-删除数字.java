@@ -1,4 +1,4 @@
-/*
+/**
 https://www.lintcode.com/problem/182
 182 · 删除数字
 

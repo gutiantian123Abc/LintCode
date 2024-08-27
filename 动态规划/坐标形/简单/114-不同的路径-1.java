@@ -1,4 +1,4 @@
-/* 114 · 不同的路径
+/** 114 · 不同的路径
 https://www.lintcode.com/problem/114
 
 描述

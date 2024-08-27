@@ -1,4 +1,4 @@
-/* 
+/**
 https://www.lintcode.com/problem/1060
 
 1060 · 每日温度

@@ -1,4 +1,4 @@
-/* 115 · 不同的路径 II
+/** 115 · 不同的路径 II
 https://www.lintcode.com/problem/115/
 
 描述

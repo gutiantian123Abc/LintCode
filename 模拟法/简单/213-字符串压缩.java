@@ -1,4 +1,4 @@
-/* 213 · 字符串压缩
+/** 213 · 字符串压缩
 https://www.lintcode.com/problem/213/
 
 

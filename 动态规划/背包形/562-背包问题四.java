@@ -1,4 +1,4 @@
-/* 562 · 背包问题四
+/** 562 · 背包问题四
 https://www.lintcode.com/problem/562
 
 描述

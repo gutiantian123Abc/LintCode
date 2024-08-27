@@ -1,4 +1,4 @@
-/*
+/**
 https://www.lintcode.com/problem/1255
 
 1255 · 移除K位

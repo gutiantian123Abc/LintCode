@@ -1,4 +1,4 @@
-/* 637 · 检查缩写字
+/** 637 · 检查缩写字
 https://www.lintcode.com/problem/637/
 
 描述

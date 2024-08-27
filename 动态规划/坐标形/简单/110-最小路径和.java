@@ -1,4 +1,4 @@
-/* 110 · 最小路径和
+/** 110 · 最小路径和
 https://www.lintcode.com/problem/110
 
 描述
@@ -10,7 +10,6 @@ https://www.lintcode.com/problem/110
 	输出： 7
 
 	解释：路线为： 1 -> 3 -> 1 -> 1 -> 1
-
 
 样例 2：
 	输入：grid = [[1,3,2]]

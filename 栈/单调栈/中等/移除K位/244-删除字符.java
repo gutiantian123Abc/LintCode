@@ -1,4 +1,4 @@
-/*
+/**
 https://www.lintcode.com/problem/244
 244 · 删除字符
 
