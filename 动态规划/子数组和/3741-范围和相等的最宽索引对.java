@@ -1,4 +1,4 @@
-/**
+/** https://www.lintcode.com/problem/3741/
  * 3741 · 范围和相等的最宽索引对
  * 描述
  * 给定两个二进制数组 nums1 和 nums2，找出 最宽 的索引对 (i, j)，
