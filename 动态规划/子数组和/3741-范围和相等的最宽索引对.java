@@ -1,5 +1,6 @@
-/** https://www.lintcode.com/problem/3741/
+/**
  * 3741 · 范围和相等的最宽索引对
+ * https://www.lintcode.com/problem/3741/
  * 描述
  * 给定两个二进制数组 nums1 和 nums2，找出 最宽 的索引对 (i, j)，
  * 使得 i <= j 并且 nums1[i] + nums1[i + 1] + ... + nums1[j] == nums2[i] + nums2[i + 1] + ... + nums2[j]。
