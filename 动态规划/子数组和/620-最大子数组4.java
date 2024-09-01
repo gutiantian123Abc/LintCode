@@ -36,21 +36,20 @@ public class Solution {
     public int maxSubarray4(int[] nums, int k) {
         // write your code here
         int n = nums.length;
-
         if (k > n) {
             return 0;
         }
 
         int[] prevSum = new int[n + 1];
+        int leftMinSum = 0;
         for(int i = 1; i <= n; i++) {
             prevSum[i] = prevSum[i - 1] + nums[i - 1];
         }
 
-        int result = prevSum[k];
-        int leftMinSum = Integer.MAX_VALUE;
-
+        int result = Integer.MIN_VALUE;
         for(int i = k; i <= n; i++) {
-            leftMinSum = Math.min(leftMinSum, prevSum[i - k]);
+            int numIndex = i - k;
+            leftMinSum = Math.min(leftMinSum, prevSum[numIndex]);
             result = Math.max(result, prevSum[i] - leftMinSum);
         }
 

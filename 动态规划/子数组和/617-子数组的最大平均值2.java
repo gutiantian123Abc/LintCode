@@ -68,11 +68,11 @@ public class Solution {
             prevSum[i] = prevSum[i - 1] + a;
         }
 
-        double leftMinSum = prevSum[0];
+        double leftMinSum = 0;
         double result = 0;
         for (int i = k; i <= n; i++) {
-            int leftIndex = i - k;
-            leftMinSum = Math.min(leftMinSum, prevSum[leftIndex]);
+            int leftNumIndex = i - k;
+            leftMinSum = Math.min(leftMinSum, prevSum[leftNumIndex]);
             if (prevSum[i] - leftMinSum >= 0) {
                 return true;
             }
