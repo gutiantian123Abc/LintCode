@@ -17,15 +17,16 @@
  *  输出: [(1,6),(8,10),(15,18)]
  */
 
-
-//Definition of Interval:
-public class Interval {
-    int start, end;
-    Interval(int start, int end) {
-        this.start = start;
-        this.end = end;
-    }
-}
+/**
+ * Definition of Interval:
+ * public class Interval {
+ *     int start, end;
+ *     Interval(int start, int end) {
+ *         this.start = start;
+ *         this.end = end;
+ *     }
+ * }
+ */
 
 public class Solution {
     /**
