@@ -1,23 +1,22 @@
 /**
-https://www.lintcode.com/problem/244
-244 · 删除字符
-
-描述
-给定一个字符串str，现在要对该字符串进行删除操作，
-保留字符串中的k个字符且相对位置不变，并且使它的字典序最小，返回这个子串。
-
-
-例1:
- 输入:str="fskacsbi",k=2
- 输出:"ab"
- 解释:“ab“是str中长度为2并且字典序最小的子串
-
-
-例2:
- 输入:str="fsakbacsi",k=3
- 输出:"aac"
-*/
-
+ * https://www.lintcode.com/problem/244
+ * 244 · 删除字符
+ *
+ * 描述
+ * 给定一个字符串str，现在要对该字符串进行删除操作，
+ * 保留字符串中的k个字符且相对位置不变，并且使它的字典序最小，返回这个子串。
+ *
+ *
+ * 例1:
+ *  输入:str="fskacsbi",k=2
+ *  输出:"ab"
+ *  解释:“ab“是str中长度为2并且字典序最小的子串
+ *
+ *
+ * 例2:
+ *  输入:str="fsakbacsi",k=3
+ *  输出:"aac"
+ */
 public class Solution {
     /**
      * @param str: the string
