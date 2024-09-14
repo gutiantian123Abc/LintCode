@@ -45,7 +45,7 @@ public class Solution {
             int end = update[1];
             int inc = update[2];
             actions[start] += inc;
-            if (end + 1 < length) {
+            if (end + 1 < length) { //注意，这里是因为【包括startIndex和endIndex】
                 actions[end + 1] -= inc;
             }
         }
