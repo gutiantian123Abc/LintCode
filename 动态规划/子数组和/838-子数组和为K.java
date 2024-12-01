@@ -32,8 +32,19 @@ public class Solution {
         for (int i = 1; i < n + 1; i++) {
             prevSum[i] = nums[i - 1] + prevSum[i - 1];
         }
+        /**
+         * prevSum[i] - prevSum[j] represents the sum of the subarray from nums[j] to nums[i - 1].
+         */
         Map<Integer, Integer> freqMap = new HashMap<>();
 
+        /** Q: why freqMap.put(0, 1); ?
+         * In your loop, you calculate restTarget = curSum - k;.
+         * If curSum is exactly k, then restTarget becomes 0.
+         * You then check if restTarget exists in freqMap to find how many times a subarray
+         * sum leading up to the current index has occurred.
+         * 也就是说
+         * 这里必须照顾到prevSum[0]的情况， prevSum[0]也是有意义的
+         */
         freqMap.put(0, 1);
         int res = 0;
         for (int i = 1; i < n + 1; i++) {
