@@ -41,6 +41,10 @@ public class Solution {
 
         Map<Integer, Integer> indexMap = new HashMap<>();
         indexMap.put(0, 0);
+        /**
+         * Without indexMap.put(0, 0);, if the sum of the elements up to index i - 1 is exactly k,
+         * the code would not recognize this subarray because indexMap would not contain the key 0 yet.
+         */
         int res = n + 1;
         for (int i = 1; i < n + 1; i++) {
             int curSum = prevSum[i];
