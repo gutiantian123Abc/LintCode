@@ -62,3 +62,44 @@ public class Solution {
         return I1;
     }
 }
+
+
+/**
+ * LeetCode version:
+ * 56. Merge Intervals
+ * https://leetcode.com/problems/merge-intervals/description/
+ */
+class Solution {
+    public int[][] merge(int[][] intervals) {
+        Arrays.sort(intervals, (a, b) -> {
+            return a[0] - b[0];
+        });
+
+        List<int[]> ans = new ArrayList<>();
+        int p1 = 0;
+        while(p1 < intervals.length) {
+            int[] cur = intervals[p1];
+            int p2 = p1;
+            while(p2 < intervals.length && cur[1] >= intervals[p2][0]) {
+                cur = merge(cur, intervals[p2]);
+                p2++;
+            }
+            ans.add(cur);
+            p1 = p2;
+        }
+
+        int[][] res = new int[ans.size()][2];
+        for (int i = 0; i < ans.size(); i++) {
+            res[i] = ans.get(i);
+        }
+
+        return res;
+    }
+
+    int[] merge(int[] I1, int[] I2) {
+        if(I1[1] <= I2[1]) {
+            I1[1] = I2[1];
+        }
+        return I1;
+    }
+}
