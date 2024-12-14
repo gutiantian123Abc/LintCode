@@ -18,6 +18,12 @@
  * 1 <= n <= 10^4
  * -1 <= leftChild[i], rightChild[i] <= n - 1
  */
+
+/**
+ * 知识点： 如何判断一个graph 是否是一个tree ?
+ * 1. 有且只有唯一一个root
+ * 2. 从root 做bfs/dfs, 所有点都能被reach， 并且reach仅有一次。 reach多一次， 代表有cycle
+ */
 class Solution {
     public boolean validateBinaryTreeNodes(int n, int[] leftChild, int[] rightChild) {
         int[] inDegree = new int[n];
