@@ -1,6 +1,7 @@
 /**
  * 919 · 会议室 II
  * https://www.lintcode.com/problem/919
+ * https://leetcode.com/problems/meeting-rooms-ii/
  *
  * 描述
  * 给定一系列的会议时间间隔intervals，包括起始和结束时间[[s1,e1],[s2,e2],...] (si < ei)，找到所需的最小的会议室数量。
