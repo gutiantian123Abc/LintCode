@@ -50,18 +50,16 @@ public class Solution {
             int start = interval.start;
             int end = interval.end;
             actions[start] += 1;
-            actions[end] -= 1; //注意： 要求： (0,8),(8,10)在8这一时刻不冲突， 边界不能重合， 否则为： if (end + 1 < length)
-                                // 参考： 903 · 范围加法
+            actions[end] -= 1;
         }
 
-        int[] psum = new int[length];
-        psum[0] = actions[0];
-        int res = 0;
+        int[] psum = new int[length + 1];
+        int maxRoom = 0;
 
-        for (int i = 1; i < length; i++) {
-            psum[i] = psum[i - 1] + actions[i];
-            res = Math.max(res, psum[i]);
+        for (int i = 1; i <= length; i++) {
+            psum[i] = psum[i - 1] + actions[i - 1];
+            maxRoom = Math.max(maxRoom, psum[i]);
         }
-        return res;
+        return maxRoom;
     }
 }
