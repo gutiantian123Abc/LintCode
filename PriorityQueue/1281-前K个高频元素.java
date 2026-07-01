@@ -1,67 +1,63 @@
 /**
- * 1281 · 前K个高频元素
- * https://www.lintcode.com/problem/1281
+ * LeetCode 347. Top K Frequent Elements
  * https://leetcode.com/problems/top-k-frequent-elements/
  *
- * 描述
- * 给定一个非空的整数数组，返回其中出现频率前 k 高的元素。
+ * Given an integer array nums and an integer k, return the k elements that
+ * appear most frequently. The answer may be returned in any order.
  *
- * 样例 1:
+ * Example 1:
+ *   Input:  nums = [1,1,1,2,2,3], k = 2
+ *   Output: [1,2]
  *
- * 输入: nums = [1,1,1,2,2,3], k = 2
- * 输出: [1,2]
+ * Example 2:
+ *   Input:  nums = [1], k = 1
+ *   Output: [1]
  *
+ * Constraints:
+ *   - 1 <= nums.length <= 10^5
+ *   - -10^4 <= nums[i] <= 10^4
+ *   - k is in the range [1, number of unique elements in nums]
+ *   - The answer is guaranteed to be unique.
  *
- * 样例 2:
+ * Follow up: The algorithm's time complexity must be better than O(n log n).
  *
- * 输入: nums = [1], k = 1
- * 输出: [1]
+ * Approach: Count frequencies with a HashMap, then keep a size-k min-heap
+ * ordered by frequency. Whenever the heap grows beyond k, poll the smallest
+ * (least frequent) element, so the heap always holds the top k most frequent.
  *
- * 你的算法的时间复杂度必须优于 O(nlogn), n 是数组的大小
+ * Time:  O(n + m log k), where n = nums.length and m = number of unique
+ *        elements (m <= n). Commonly stated as O(n log k).
+ * Space: O(n) for the frequency map, plus O(k) for the heap and result.
  */
-
-public class Solution {
-    /**
-     * @param nums: the given array
-     * @param k: the given k
-     * @return: the k most frequent elements
-     *          we will sort your return value in output
-     */
-    public List<Integer> topKFrequent(int[] nums, int k) {
-        // Write your code here
-        Map<Integer, Integer> freqMap = new HashMap<>();
+class Solution {
+    public int[] topKFrequent(int[] nums, int k) {
+        Map<Integer, Integer> map = new HashMap<>();
         for (int num : nums) {
-            if (!freqMap.containsKey(num)) {
-                freqMap.put(num, 0);
+            if (!map.containsKey(num)) {
+                map.put(num, 0);
             }
-            freqMap.put(num, freqMap.get(num) + 1);
+            map.put(num, map.get(num) + 1);
         }
 
-        PriorityQueue<Integer> pq = new PriorityQueue<>(k, (Integer a, Integer b) -> { // minPQ
-            int aFreq = freqMap.get(a);
-            int bFreq = freqMap.get(b);
-            return aFreq - bFreq;
+        // min queue, poll out min element
+        PriorityQueue<Integer> pq = new PriorityQueue<>((Integer a, Integer b) -> {
+            return Integer.compare(map.get(a), map.get(b));
         });
 
-
-        for (int num : freqMap.keySet()) {
+        for (int num : map.keySet()) {
             pq.add(num);
+
             if (pq.size() > k) {
                 pq.poll();
             }
         }
 
-        Stack<Integer> stack = new Stack<>();
-        while(!pq.isEmpty()) {
-            stack.push(pq.poll());
-        }
-
-        List<Integer> res = new ArrayList<>();
-        while(!stack.isEmpty()) {
-            res.add(stack.pop());
+        int[] res = new int[pq.size()];
+        int i = 0;
+        while (!pq.isEmpty()) {
+            res[i++] = pq.poll();
         }
 
         return res;
     }
 }
-
