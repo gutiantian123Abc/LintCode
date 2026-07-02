@@ -1,103 +1,98 @@
 /**
- * 1116 · 函数执行时间
- * https://www.lintcode.com/problem/1116/description
- * https://leetcode.com/problems/exclusive-time-of-functions/description/
+ * LeetCode 636. Exclusive Time of Functions
+ * https://leetcode.com/problems/exclusive-time-of-functions/
  *
- * 描述
- * 给定一个不可中断单线程CPU的n个函数的运行日志，返回这些函数的执行时间片。
- * 每个函数都有一个唯一的id，从0到n-1。一个函数可能会被递归调用或者被其他函数调用。
- * 日志是一串字符串，其格式为：function_id:start_or_end:timestamp。
- * 例如：0:start:0意味着函数0从时间片0开始时执行。0:end:0意味着函数0从时间片0末尾结束。
- * 函数的“独占时间”是指这个函数所花费的时间片，
- * 调用其他函数所花费的时间片不会被算入该函数的独占时间。按照函数id升序返回每一个函数的独占时间。
+ * On a single-threaded CPU, functions run and their calls nest like a stack:
+ * if A calls B, then B must finish before A can resume. Given n functions with
+ * IDs 0..n-1 and a list of logs, return each function's exclusive time -- the
+ * total time it spends running itself, NOT counting time spent inside the
+ * functions it calls.
  *
- * 输入的日志依据时间戳排序，不是id。
- * 输出应该依据函数id升序，也即输出的第0个元素对应第0个函数的执行时间。
- * 两个函数不会在同一个时间开始或结束。
- * 函数可以递归调用，并且一定会结束。
- * 1 <= n <= 100
+ * Each log has the form "{id}:{start|end}:{timestamp}":
+ *   - "start" at t: the function begins at the START of time unit t.
+ *   - "end"   at t: the function stops at the END of time unit t, i.e. it
+ *                   occupies the whole unit t (t itself counts).
  *
- * 样例 1：
- * 输入:
- *  2
- * 0:start:0
- * 1:start:2
- * 1:end:5
- * 0:end:6
- * 输出:
- * 3 4
+ * Example:
+ *   Input:  n = 2, logs = ["0:start:0","1:start:2","1:end:5","0:end:6"]
+ *   Output: [3,4]
+ *   (fn 0 runs on units {0,1} and {6} -> 3; fn 1 runs on units {2,3,4,5} -> 4)
  *
- * 解释:
- * 函数0从时间片0开始，执行2个时间片，到达时间片1末尾。
- * 现在函数0调用了函数1，函数1从时间片2开始，执行了4个时间片，到达时间片5末尾。
- * 函数0又从时间片6开始时执行，到时间片6末尾时结束，执行了1个时间片。
- * 所以函数0一共执行了3个时间片，函数1一共执行了4个时间片。
+ * Constraints:
+ *   - 1 <= n <= 100
+ *   - 1 <= logs.length <= 500
+ *   - 0 <= timestamp <= 10^9
+ *   - Two start events never share a timestamp; same for two end events.
+ *   - Every function has a matching end log for each start log.
  *
+ * Approach: A stack holds the IDs of the functions currently in the call chain;
+ * its top is whatever is running on the CPU right now. Before every event we
+ * settle the top function's elapsed time since prevTime, then update the stack.
  *
- * 样例 2:
- * 输入:
- * 3
- * 0:start:0
- * 1:start:2
- * 2:start:3
- * 2:end:4
- * 1:end:5
- * 0:end:6
- * 1:start:7
- * 1:end:10
- * 输出:
- * 3 6 2
- *
- * 解释：
- * 函数0从时间片0开始，执行2个时间片，到达时间片1末尾。
- * 现在函数0调用了函数1，函数1从时间片2开始，执行了1个时间片。
- * 函数1调用了函数2，函数2从时间片3开始，执行了2个时间片。
- * 函数1又从时间片5开始时执行，并在时间片5末尾时结束，执行了1个时间片。
- * 函数0又从时间片6开始时执行，并在时间片6末尾时结束，执行了1个时间片。
- * 函数1从时间片7开始时执行，并在时间片10末尾结束，执行了4个时间片。
- * 所以函数0一共执行了2 + 1 = 3个时间片，函数1一共执行了1 + 1 + 4 = 6个时间片，函数2一共执行了 2 个时间片。
- *
- * 更形象样例参照LeetCode
+ * Time:  O(L), where L = logs.length. Each log is processed once.
+ * Space: O(n + d) -- O(n) for the result, O(d) for the stack, where d is the
+ *        maximum call-nesting depth.
  */
 
-public class Solution {
-    /**
-     * @param n: a integer
-     * @param logs: a list of strings
-     * @return: return a list of integers
-     */
-    class Node {
-        int id;
-        public Node(int id) {
-            this.id = id;
-        }
-    }
-
+/*
+ * ===== prevTime 详解 =====
+ *
+ * prevTime 的语义:
+ *   "当前栈顶函数从哪个时刻开始,连续占用 CPU 且这段时间还没被结算。"
+ *   换句话说,prevTime 永远指向"下一段独占时间的起点"。每次事件到来时,我们
+ *   先把栈顶函数从 prevTime 到当前时刻的时间算给它,再更新 prevTime。
+ *
+ * 两种时间戳的含义(这是理解 +1 的关键):
+ *   - start:t  ->  被打断的那个函数在 t 这一刻就停了,它【不占用】第 t 个单位。
+ *                  所以它跑了 [prevTime, t) 这个半开区间,长度 = t - prevTime。
+ *   - end:t    ->  结束的函数把【整个】第 t 个单位占满了,t 本身要算进去。
+ *                  所以它跑了 [prevTime, t] 这个闭区间,长度 = t - prevTime + 1。
+ *
+ * 为什么 start 分支里 prevTime = curTime:
+ *   新函数从第 curTime 个单位开始运行,所以它这一段独占时间的起点就是 curTime。
+ *
+ * 为什么 end 分支里 prevTime = curTime + 1(而不是 curTime):
+ *   结束的函数占满了第 curTime 个单位,所以它的调用者(出栈后新的栈顶)要等到
+ *   【下一个】单位才能恢复。恢复的起点是 curTime + 1,而不是 curTime。
+ *   这一步是最容易搞错的地方:虽然直觉上会想写 res[...] += curTime - prevTime,
+ *   但只要参照点用对(prevTime 记成 curTime + 1)、区间用对(end 是闭区间要 +1),
+ *   两者就自洽了。少了任何一个都会算错。
+ *
+ * 拿题目的例子走一遍(关注 prevTime 的变化):
+ *   0:start:0  结算(栈空,跳过);   push 0;   prevTime = 0
+ *   1:start:2  res[0] += 2 - 0 = 2; push 1;   prevTime = 2
+ *   1:end:5    res[1] += 5 - 2 + 1 = 4(闭区间); pop 1; prevTime = 5 + 1 = 6
+ *   0:end:6    res[0] += 6 - 6 + 1 = 1(闭区间); pop 0; prevTime = 6 + 1 = 7
+ *   结果 [3, 4]。
+ *
+ *   注意 fn 0 的最后一段:prevTime 是 6(fn 1 结束后的下一个单位),不是 5。
+ *   因为 fn 1 占满了第 5 个单位,fn 0 是从第 6 个单位才恢复的。所以这里
+ *   curTime(6) - prevTime(6) + 1 = 1 才是对的;若把 prevTime 记成 5 再省掉
+ *   +1,虽然对 fn 0 碰巧凑对了,但对 fn 1 那种"紧跟自己 start 之后的第一段"
+ *   (5 - 2 = 3)就会少算一个单位。所以 +1 不能笼统去掉。
+ */
+class Solution {
     public int[] exclusiveTime(int n, List<String> logs) {
-        // write your code here
         int[] res = new int[n];
-        Stack<Node> stack = new Stack<>();
-        int lastTime = 0;
+        Stack<Integer> stack = new Stack<>();
+        int prevTime = 0;
         for (String log : logs) {
-            String[] info = log.split(":");
-            int id = Integer.parseInt(info[0]);
-            String flag = info[1];
-            int curTime = Integer.parseInt(info[2]);
-
-            if (flag.equals("start")) { // 当前是开始事件
+            String[] parts = log.split(":");
+            int id = Integer.parseInt(parts[0]);
+            String action = parts[1];
+            int curTime = Integer.parseInt(parts[2]);
+            if (action.equals("start")) {
                 if (!stack.isEmpty()) {
-                    // 更新栈顶函数的独占时间
-                    res[stack.peek().id] += curTime - lastTime;
+                    res[stack.peek()] += curTime - prevTime;
                 }
-                // 将当前函数压入栈
-                stack.push(new Node(id));
-                lastTime = curTime;
-            } else { // 当前是结束事件
-                // 弹出栈顶函数，并更新其独占时间
-                res[stack.pop().id] += curTime - lastTime + 1;
-                lastTime = curTime + 1;
+                stack.push(id);
+                prevTime = curTime;
+            } else {
+                res[stack.pop()] += curTime - prevTime + 1;
+                prevTime = curTime + 1;
             }
         }
+
         return res;
     }
 }
