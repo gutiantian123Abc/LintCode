@@ -66,3 +66,61 @@ class Solution {
         return profit;
     }
 }
+
+// DP approach
+/**
+ * LeetCode 122. Best Time to Buy and Sell Stock II -- state-machine DP version
+ * https://leetcode.com/problems/best-time-to-buy-and-sell-stock-ii/
+ *
+ * >>> Alternative formulation. Solution.java in this folder holds the primary
+ * >>> greedy (eat every rise); this file rewrites it as the hold/cash DP --
+ * >>> the GENERAL form that survives when a fee arrives (LC 714).
+ *
+ * Problem: unlimited transactions, at most one share held at any time (sell
+ * before re-buying). Return the maximum profit.
+ *
+ * Example: prices = [7,1,5,3,6,4] -> 7   (buy 1 sell 5; buy 3 sell 6)
+ * Constraints: 1 <= prices.length <= 3 * 10^4, 0 <= prices[i] <= 10^4
+ *
+ * State:
+ *   dp[i][0] = max profit at end of day i holding NO stock
+ *   dp[i][1] = max profit at end of day i HOLDING one stock
+ * Cornerstones dp[0][0] = 0, dp[0][1] = -prices[0]; answer dp[n-1][0]
+ * (ending while holding wastes the buy-in).
+ *
+ * Transition -- "unlimited transactions" written as an equation:
+ *   dp[i][0] = max( dp[i-1][0], dp[i-1][1] + prices[i] )   // rest / sell today
+ *   dp[i][1] = max( dp[i-1][1], dp[i-1][0] - prices[i] )   // rest / buy today,
+ *                                                           // standing on ALL
+ *                                                           // prior profit
+ * The buy edge finances each new purchase from yesterday's empty-pocket
+ * ledger, so trades chain. On [7,1,5,3,6,4] at i = 3 the table buys at 3
+ * while carrying the earlier profit of 4 (hold jumps from -1 to 1), which is
+ * what lets the 6-sell reach 7. Pin that base to 0 instead and the second
+ * trade can never stand up -- that is exactly LC 121 (answer 5). The two
+ * merge into one function via base = unlimited ? dp[i-1][0] : 0.
+ *
+ * Versus the greedy in Solution.java: greedy constructively achieves the
+ * profit upper bound in four lines -- same optimum, less machinery. The DP
+ * earns its keep one problem later: with a per-trade fee (LC 714) greedy's
+ * telescoping identity breaks, while this table just takes "- fee" on the
+ * sell edge and keeps working unchanged.
+ *
+ * Time:  O(n) -- n rows x 2 cells x O(1) each.
+ * Space: O(n); each row depends only on the previous row, so it rolls down to
+ *        two variables (cash/hold plus a prevCash temp) for O(1).
+ */
+class Solution {
+    public int maxProfit(int[] prices) {
+        int n = prices.length;
+        int[][] dp = new int[n][2];
+        dp[0][0] = 0;
+        dp[0][1] = -prices[0];
+
+        for (int i = 1; i < n; i++) {
+            dp[i][0] = Math.max(dp[i - 1][0], dp[i - 1][1] + prices[i]);
+            dp[i][1] = Math.max(dp[i - 1][1], dp[i - 1][0] - prices[i]);
+        }
+        return dp[n - 1][0];
+    }
+}
