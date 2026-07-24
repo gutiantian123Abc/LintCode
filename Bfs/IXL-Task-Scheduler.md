@@ -1,134 +1,218 @@
-# IXL Task Scheduler — Java 版
+# IXL Interview — Task Scheduler(Java)
 
-> 还原自面经 #11 / #12 / #15(VO 高频,出现 3 次)。代码已在 JDK 21 编译并通过全部测试。
+![Topic](https://img.shields.io/badge/topic-Topological%20Sort%20%2B%20Max--Heap-00695c) ![Frequency](https://img.shields.io/badge/VO%20%E5%87%BA%E7%8E%B0-3%20%E6%AC%A1-orange) ![Tests](https://img.shields.io/badge/tests-6%20passed-brightgreen)
+
+> **一句话**:LC 210 拓扑排序的 OOD 变体 —— 把 Kahn 的 `Queue` 换成 `PriorityQueue`(max-heap),ready 集合内按 priority 贪心。
+> 还原自面经 #11 / #12 / #15;代码 JDK 21 编译,6 组测试通过。
+
+---
 
 ## 题面还原
 
 实现一个任务调度系统,支持两个操作:
 
-- `addTask(int taskId, int priority, List<Integer> dependencies)` —— 注册任务:taskId 唯一;priority 越大优先级越高;dependencies 是必须先完成的任务列表。
-- `execute() -> List<Integer>` —— 按合法顺序执行所有任务并返回执行序列。规则:任务必须在其所有依赖完成后执行;**在所有"当前可执行"(依赖已全部满足)的任务中,priority 最高的先执行**。
+| API | 说明 |
+|---|---|
+| `addTask(int taskId, int priority, List<Integer> dependencies)` | 注册任务。`taskId` 唯一;`priority` 越大优先级越高;`dependencies` 为必须先完成的任务列表 |
+| `execute() → List<Integer>` | 按合法顺序执行全部任务并返回执行序列 |
 
-## 与 LC 210 (Course Schedule II) 的差异速记
+**规则**:任务必须在其所有依赖完成后执行;在所有*当前可执行*(依赖已全部满足)的任务中,**priority 最高的先执行**。
 
-| 维度 | LC 210 | IXL Task Scheduler |
+## 与 LC 210 · Course Schedule II 的差异
+
+| 维度 | [LC 210](https://leetcode.com/problems/course-schedule-ii/) | IXL Task Scheduler |
 |---|---|---|
 | 结果要求 | 任意合法拓扑序 | ready 集合内按 priority 贪心 |
-| ready 数据结构 | FIFO `Queue` | **max-heap**(`PriorityQueue` + 自定义比较器) |
+| ready 数据结构 | FIFO `Queue` | **max-heap**(`PriorityQueue` + 比较器) |
 | 复杂度 | O(V+E) | O(V log V + E) |
 | 接口 | 一次性数组输入 | 增量式 OOD,自己设计类与存储 |
 | 有环 | 返回空数组 | 自定义行为(本实现抛异常) |
-| 脏输入 | 不存在 | 重复 id、依赖未注册任务、重复 execute 等都要处理 |
+| 脏输入 | 不存在 | 重复 id / 依赖未注册任务 / 重复 execute |
 
-**最容易翻车的语义**:priority 是 *ready 集合内的局部贪心*,不是全局排序——全场最高优先级的任务如果依赖未满足照样最后跑(见测试用例 1)。写之前先跟面试官确认这个语义。
+## 从我的 CS2 模板迁移过来,只改了三处
 
-## Java 实现(已验证)
+1. **`LinkedList` → `PriorityQueue`**(算法必须)。比较器用 `Integer.compare` 而不是 `b - a`(减法极端值会溢出);同 priority 按 taskId 升序 tie-break。
+2. **去掉 `int size = queue.size()` 层级循环**(⚠️ 照搬模板会做错)。CS2 里分层无所谓,这题分层会改变语义:
+
+   ```text
+   ready = {A(p5), C(p1)} → 弹出 A,解锁 B(p100)
+   层级循环:先弹完本层的 C        → A, C, B ✗
+   正确语义:B 立刻参与竞争,先于 C → A, B, C ✓
+   ```
+
+   测试用例 6 专门卡这个场景。
+3. **execute 前拷贝一份 `remainingParents` 再删**(OOD 适配)。CS2 直接删 `parentsMap` 是一次性调用没问题;类的 `execute()` 不该破坏原图,否则第二次调用结果就错了(用例 1 有连续调用断言)。
+
+## 参考实现
+
+先自己限时 25 分钟写一遍(含环检测),再展开对照 👇
+
+<details>
+<summary><b>展开完整代码(含 6 组测试)</b></summary>
 
 ```java
 import java.util.*;
 
+/**
+ * IXL Task Scheduler — parentsMap / childrenMap 命名、显式 containsKey 初始化、
+ * "从 parents 列表里删元素、删空进队"代替 indegree 计数、显式 null 检查。
+ */
 public class TaskScheduler {
 
-    private final Map<Integer, Integer> priority = new HashMap<>();        // taskId -> priority
-    private final Map<Integer, Set<Integer>> deps = new HashMap<>();       // taskId -> 它依赖的前置任务
-    private final Map<Integer, Set<Integer>> dependents = new HashMap<>(); // 前置任务 -> 等它解锁的任务
+    private final Map<Integer, Integer> priorityMap = new HashMap<>();
+    private final Map<Integer, List<Integer>> parentsMap = new HashMap<>();   // task -> 它依赖的父任务
+    private final Map<Integer, List<Integer>> childrenMap = new HashMap<>();  // task -> 依赖它的子任务
 
-    public void addTask(int taskId, int prio, List<Integer> dependencies) {
-        if (priority.containsKey(taskId)) {
-            throw new IllegalArgumentException("duplicate taskId: " + taskId); // 澄清点①:重复 id
+    public void addTask(int taskId, int priority, List<Integer> dependencies) {
+        if (priorityMap.containsKey(taskId)) {
+            throw new IllegalArgumentException("duplicate taskId: " + taskId);
         }
-        priority.put(taskId, prio);
-        deps.putIfAbsent(taskId, new HashSet<>());
-        for (int d : dependencies) {
-            deps.get(taskId).add(d);                                  // 澄清点②:允许依赖尚未 add 的任务?
-            dependents.computeIfAbsent(d, k -> new HashSet<>()).add(taskId); // 此实现允许前向引用,execute 时校验
+        priorityMap.put(taskId, priority);
+
+        // 假设 dependencies 内部无重复(若可能重复需先去重,否则后面 indexOf/remove 会出错——可当面试澄清点)
+        for (int parent : dependencies) {
+            if (!parentsMap.containsKey(taskId)) {
+                parentsMap.put(taskId, new ArrayList<>());
+            }
+            parentsMap.get(taskId).add(parent);
+
+            if (!childrenMap.containsKey(parent)) {
+                childrenMap.put(parent, new ArrayList<>());
+            }
+            childrenMap.get(parent).add(taskId);
         }
     }
 
     public List<Integer> execute() {
-        // 澄清点②的兜底:依赖里出现从未注册的任务 -> 永远无法满足,直接报错
-        for (Map.Entry<Integer, Set<Integer>> e : deps.entrySet()) {
-            for (int d : e.getValue()) {
-                if (!priority.containsKey(d)) {
-                    throw new IllegalStateException("task " + e.getKey() + " depends on unknown task " + d);
+        // 校验:依赖了从未注册的任务(它永远不会 ready,表现和环一样,提前报错更清晰)
+        for (int task : parentsMap.keySet()) {
+            for (int parent : parentsMap.get(task)) {
+                if (!priorityMap.containsKey(parent)) {
+                    throw new IllegalStateException("task " + task + " depends on unknown task " + parent);
                 }
             }
         }
 
-        Map<Integer, Integer> indegree = new HashMap<>();
-        for (int t : priority.keySet()) {
-            indegree.put(t, deps.get(t).size());
+        // 拷贝一份再删:execute() 不该破坏原图(否则第二次调用结果就错了)
+        Map<Integer, List<Integer>> remainingParents = new HashMap<>();
+        for (int task : parentsMap.keySet()) {
+            remainingParents.put(task, new ArrayList<>(parentsMap.get(task)));
         }
 
-        // ★ 与 LC210 的唯一算法差异:ready 集合不用 Queue,用 max-heap
-        //   priority 大的先出堆;同 priority 按 taskId 升序(澄清点③,保证确定性)
-        PriorityQueue<Integer> ready = new PriorityQueue<>((a, b) -> {
-            int cmp = Integer.compare(priority.get(b), priority.get(a));
+        // ★ 改动1:LinkedList 换成 PriorityQueue(max-heap)
+        Queue<Integer> queue = new PriorityQueue<>((a, b) -> {
+            int cmp = Integer.compare(priorityMap.get(b), priorityMap.get(a));
             return cmp != 0 ? cmp : Integer.compare(a, b);
         });
-        for (Map.Entry<Integer, Integer> e : indegree.entrySet()) {
-            if (e.getValue() == 0) ready.offer(e.getKey());
-        }
 
-        List<Integer> order = new ArrayList<>();
-        while (!ready.isEmpty()) {
-            int t = ready.poll();
-            order.add(t);
-            for (int nxt : dependents.getOrDefault(t, Collections.emptySet())) {
-                indegree.merge(nxt, -1, Integer::sum);
-                if (indegree.get(nxt) == 0) ready.offer(nxt);
+        // 和 CS2 一样:不在 parentsMap 里(或列表为空)= 没有前置,直接进队
+        for (int task : priorityMap.keySet()) {
+            if (!remainingParents.containsKey(task) || remainingParents.get(task).size() == 0) {
+                queue.add(task);
             }
         }
 
-        if (order.size() != priority.size()) {
-            throw new IllegalStateException("cycle detected: no valid execution order"); // 澄清点④:有环行为
+        List<Integer> order = new ArrayList<>();
+        // ★ 改动2:单层 while,不要 size 层级循环
+        while (!queue.isEmpty()) {
+            int task = queue.poll();
+            order.add(task);
+
+            List<Integer> children = childrenMap.get(task);
+            if (children != null && children.size() != 0) {
+                for (int child : children) {
+                    int parentIndex = remainingParents.get(child).indexOf(task);
+                    remainingParents.get(child).remove(parentIndex);
+                    if (remainingParents.get(child).size() == 0) {
+                        queue.add(child);
+                    }
+                }
+            }
+        }
+
+        // CS2 的习惯是返回空数组;OOD 版建议抛异常把"有环"显式暴露(可与面试官确认)
+        if (order.size() != priorityMap.size()) {
+            throw new IllegalStateException("cycle detected: no valid execution order");
         }
         return order;
     }
+
+    // ---------------- 测试 ----------------
+    private static void check(boolean cond, String msg) {
+        if (!cond) throw new AssertionError(msg);
+    }
+
+    public static void main(String[] args) {
+        // 用例1:priority 只在"同时 ready"的任务之间起作用;execute 可重复调用
+        TaskScheduler s = new TaskScheduler();
+        s.addTask(1, 5, List.of());
+        s.addTask(2, 10, List.of());
+        s.addTask(3, 1, List.of(2));
+        s.addTask(4, 20, List.of(1, 3));
+        check(s.execute().equals(List.of(2, 1, 3, 4)), "case1 failed");
+        check(s.execute().equals(List.of(2, 1, 3, 4)), "case1 repeat failed");
+
+        // 用例2:环检测
+        TaskScheduler s2 = new TaskScheduler();
+        s2.addTask(5, 1, List.of(6));
+        s2.addTask(6, 1, List.of(5));
+        try { s2.execute(); check(false, "case2 should throw"); }
+        catch (IllegalStateException e) { check(e.getMessage().contains("cycle"), "case2 wrong error"); }
+
+        // 用例3:依赖了不存在的任务
+        TaskScheduler s3 = new TaskScheduler();
+        s3.addTask(7, 1, List.of(99));
+        try { s3.execute(); check(false, "case3 should throw"); }
+        catch (IllegalStateException e) { check(e.getMessage().contains("unknown"), "case3 wrong error"); }
+
+        // 用例4:空 scheduler / 无依赖全按 priority
+        check(new TaskScheduler().execute().isEmpty(), "case4a failed");
+        TaskScheduler s4 = new TaskScheduler();
+        s4.addTask(1, 1, List.of()); s4.addTask(2, 3, List.of()); s4.addTask(3, 2, List.of());
+        check(s4.execute().equals(List.of(2, 3, 1)), "case4b failed");
+
+        // 用例5:重复 taskId
+        TaskScheduler s5 = new TaskScheduler();
+        s5.addTask(1, 1, List.of());
+        try { s5.addTask(1, 2, List.of()); check(false, "case5 should throw"); }
+        catch (IllegalArgumentException e) { /* expected */ }
+
+        // 用例6:层级循环陷阱 —— 新解锁的高优先级任务必须立刻参与竞争
+        TaskScheduler s6 = new TaskScheduler();
+        s6.addTask(1, 5, List.of());
+        s6.addTask(2, 1, List.of());
+        s6.addTask(3, 100, List.of(1));
+        check(s6.execute().equals(List.of(1, 3, 2)), "case6 failed");
+
+        System.out.println("all tests passed");
+    }
 }
 ```
 
-### LC 210 对照版(普通 Queue,任意合法序)
+</details>
 
-```java
-public static int[] courseScheduleII(int numCourses, int[][] prerequisites) {
-    List<List<Integer>> graph = new ArrayList<>();
-    for (int i = 0; i < numCourses; i++) graph.add(new ArrayList<>());
-    int[] indegree = new int[numCourses];
-    for (int[] p : prerequisites) {   // p = [a, b] 表示先修 b 再上 a
-        graph.get(p[1]).add(p[0]);
-        indegree[p[0]]++;
-    }
-    Deque<Integer> queue = new ArrayDeque<>();
-    for (int i = 0; i < numCourses; i++) if (indegree[i] == 0) queue.offer(i);
-    int[] order = new int[numCourses];
-    int idx = 0;
-    while (!queue.isEmpty()) {
-        int c = queue.poll();
-        order[idx++] = c;
-        for (int nxt : graph.get(c)) {
-            if (--indegree[nxt] == 0) queue.offer(nxt);
-        }
-    }
-    return idx == numCourses ? order : new int[0];
-}
-```
+## 测试用例一览
 
-## 测试用例(全部通过)
+| # | 场景 | 输入(id, priority, deps) | 期望 |
+|---|---|---|---|
+| 1 | priority 是 ready 集合内的**局部**贪心 | 1(5,[]) 2(10,[]) 3(1,[2]) 4(20,[1,3]) | `[2, 1, 3, 4]`,重复调用结果一致 |
+| 2 | 环检测 | 5(1,[6]) 6(1,[5]) | 抛 `cycle detected` |
+| 3 | 依赖未注册任务 | 7(1,[99]) | 抛 `unknown task` |
+| 4 | 空 / 全无依赖 | —— / 1(1) 2(3) 3(2) | `[]` / `[2, 3, 1]` |
+| 5 | 重复 taskId | addTask(1,…) ×2 | 抛 `IllegalArgumentException` |
+| 6 | **层级循环陷阱** | 1(5,[]) 2(1,[]) 3(100,[1]) | `[1, 3, 2]`(层级循环会错出 `[1, 2, 3]`) |
 
-1. **priority 是局部贪心**:`1(p5,无依赖)、2(p10,无依赖)、3(p1,依赖2)、4(p20,依赖1和3)` → 执行序 `[2, 1, 3, 4]`。4 优先级全场最高但只能最后;2 完成解锁 3 后,ready={1,3},1 更高所以先 1。
-2. **环检测**:5↔6 互相依赖 → 抛 `IllegalStateException("cycle detected...")`。
-3. **依赖不存在的任务**:task 7 依赖 99(从未注册)→ 报错,注意它的表现和环一样(永远不 ready),要能解释。
-4. **空 scheduler** → 返回空列表;**全无依赖** → 纯按 priority 降序。
-5. **重复 taskId** → `addTask` 抛 `IllegalArgumentException`。
+## 面试当场要确认的澄清点
 
-## Java 面试细节提醒
+- [ ] 重复 `taskId` 怎么处理?(本实现:抛异常)
+- [ ] 允许依赖"还没 add 的任务"吗?(本实现:允许前向引用,execute 时校验)
+- [ ] `dependencies` 里会有重复元素吗?(有则需去重,否则 `indexOf/remove` 出错)
+- [ ] 同 priority 怎么排?(本实现:taskId 升序,保证确定性)
+- [ ] 有环的行为:抛异常还是返回空?(LC 习惯返回空,OOD 建议抛异常)
+- [ ] `execute()` 重复调用的语义?执行后还能继续 `addTask` 吗?
 
-- `PriorityQueue` 默认是 **min-heap**,必须传比较器反转;比较器里用 `Integer.compare` 避免减法溢出(`b - a` 在极端值会溢出,说出这点是加分项)。
-- 比较器加 taskId 作 tie-break,保证输出确定性——面试官问"同优先级怎么办"时你已经有答案。
-- `indegree.merge(nxt, -1, Integer::sum)` 比 get+put 干净;`getOrDefault` 防 NPE。
-- 追问弹药库(主动说):重复 execute 的语义(幂等?清空?)、execute 后还能 addTask 吗、并发调用要不要加锁。
+## Java 细节(说出来是加分项)
 
-## 练法
-
-白板/HackerRank 环境限时 25 分钟自己写一遍(含环检测),写完对照本文查漏——重点检查你有没有主动处理澄清点①–④,那是这题和裸拓扑排序拉开差距的地方。
+- `PriorityQueue` 默认 **min-heap**,必须传反转比较器
+- 比较器用 `Integer.compare`,不用 `b - a`(溢出风险)
+- 复杂度:`execute` O(V log V + E);`indexOf/remove` 是 O(deg) 的小额外开销,面试官追问可提"依赖多时换 `indegree` 计数或 `Set`"
