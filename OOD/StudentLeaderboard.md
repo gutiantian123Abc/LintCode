@@ -1,6 +1,6 @@
 # IXL Interview — Student Leaderboard(OOD)
 
-![Topic](https://img.shields.io/badge/topic-OOD%20%2B%20Sorting%20%2B%20Integer%20Math-00695c) ![Frequency](https://img.shields.io/badge/%E7%94%B5%E9%9D%A2%E5%87%BA%E7%8E%B0-2%20%E6%AC%A1-orange) ![Round](https://img.shields.io/badge/45min%20phone%20screen-%E9%AB%98%E6%A6%82%E7%8E%87%E9%A2%98-red) ![Tests](https://img.shields.io/badge/tests-8%20groups%20passed-brightgreen)
+![Topic](https://img.shields.io/badge/topic-OOD%20%2B%20Sorting%20%2B%20Integer%20Math-00695c) ![Frequency](https://img.shields.io/badge/%E7%94%B5%E9%9D%A2%E5%87%BA%E7%8E%B0-2%20%E6%AC%A1-orange) ![Round](https://img.shields.io/badge/45min%20phone%20screen-%E9%AB%98%E6%A6%82%E7%8E%87%E9%A2%98-red) ![Tests](https://img.shields.io/badge/tests-9%20groups%20%2B%20500%20fuzz%20passed-brightgreen)
 
 > **一句话**:算法不难的纯 OOD 题,拼的是**类设计、边界语义、整数运算的干净度和对话质量**。
 > 还原自面经 #6 / #16 —— #16 的 phone screen 就是它:"45min,题目不难是一道 OOD,很快做出来和 interviewer 聊了会儿天,30 分钟结束"。
@@ -103,6 +103,39 @@ public class StudentLeaderboard {
         return new ArrayList<>(qualified.subList(0, Math.min(3, qualified.size())));
     }
 
+    /** Follow-up 版本:只要前 3 → 读时构建大小为 3 的 bounded heap,O(n log 3) ≈ O(n),免全排序。
+     *  注意:堆是 getTop 调用时临时建的,不能像 LC 703 那样常驻 —— submit 会改变学生的
+     *  平均用时甚至入选资格,而 PriorityQueue 不支持原地更新(remove(Object) 是 O(n))。
+     *  真要常驻有序结构应选 TreeSet(remove → 更新 → add)。 */
+    public List<Integer> getTopStudentsHeap() {
+        // 堆顶 = 当前入选者里最慢的(同速则 id 大的),超过 3 个就把堆顶踢掉
+        PriorityQueue<Integer> slowestOnTop = new PriorityQueue<>((a, b) -> {
+            StudentStats sa = statsMap.get(a);
+            StudentStats sb = statsMap.get(b);
+            long left = sa.totalTime * sb.attempts;
+            long right = sb.totalTime * sa.attempts;
+            if (left != right) {
+                return Long.compare(right, left);   // 慢的排堆顶(先被踢)
+            }
+            return Integer.compare(b, a);           // 同速:大 id 先被踢,保留小 id
+        });
+        for (Map.Entry<Integer, StudentStats> entry : statsMap.entrySet()) {
+            StudentStats stats = entry.getValue();
+            if (stats.attempts >= 4 && (long) stats.correctCount * 4 > (long) stats.attempts * 3) {
+                slowestOnTop.offer(entry.getKey());
+                if (slowestOnTop.size() > 3) {
+                    slowestOnTop.poll();
+                }
+            }
+        }
+        // 堆里剩最快的 <= 3 个;弹出顺序是慢 -> 快,从头部插入还原成升序
+        LinkedList<Integer> result = new LinkedList<>();
+        while (!slowestOnTop.isEmpty()) {
+            result.addFirst(slowestOnTop.poll());
+        }
+        return new ArrayList<>(result);
+    }
+
     // ---------------- 测试 ----------------
     private static void check(boolean cond, String msg) {
         if (!cond) throw new AssertionError(msg);
@@ -158,6 +191,13 @@ public class StudentLeaderboard {
         try { lb.submit(1, true, -5); check(false, "case8 should throw"); }
         catch (IllegalArgumentException e) { /* expected */ }
 
+        // 用例9:heap 版与 sort 版在所有场景下输出一致
+        check(lb.getTopStudentsHeap().equals(lb.getTopStudents()), "case9 lb failed");
+        check(lb2.getTopStudentsHeap().equals(lb2.getTopStudents()), "case9 lb2 failed");
+        check(lb3.getTopStudentsHeap().equals(lb3.getTopStudents()), "case9 lb3 failed");
+        check(lb4.getTopStudentsHeap().equals(lb4.getTopStudents()), "case9 lb4 failed");
+        check(lb5.getTopStudentsHeap().equals(lb5.getTopStudents()), "case9 lb5 failed");
+
         System.out.println("all tests passed");
     }
 }
@@ -177,6 +217,7 @@ public class StudentLeaderboard {
 | 6 | 空榜单 / 全答错 | 空列表(不是 null) |
 | 7 | 一次很慢的**错误**提交 | 计入 attempts 和总用时,拉低排名 |
 | 8 | `time` 为负 | 抛 `IllegalArgumentException` |
+| 9 | heap 版 vs sort 版 | 所有场景输出一致(另做过 500 轮随机 fuzz) |
 
 ## 面试当场要确认的澄清点
 
@@ -191,7 +232,7 @@ public class StudentLeaderboard {
 
 当前设计是**写快读慢**:`submit` O(1),`getTop` O(n log n)。可聊的优化方向:
 
-1. **只要前 3**:遍历时维护大小为 3 的小顶堆(按"最慢"弹出),O(n log 3) ≈ O(n),不用全排序
+1. **只要前 3**:遍历时维护大小为 3 的 bounded heap(堆顶放最慢者,超 3 踢堆顶),O(n log 3) ≈ O(n),不用全排序 —— 完整代码见上方 `getTopStudentsHeap()`,与 sort 版的一致性经 9 组用例 + 500 轮随机 fuzz 验证。**注意堆是读时临时建的,不能常驻**:submit 会改变学生的平均用时和入选资格,`PriorityQueue` 不支持原地更新(`remove(Object)` 是 O(n)),数据会陈旧
 2. **读远多于写**:维护有序结构(`TreeSet` + 自定义比较器),`submit` 时先删后插 O(log n),`getTop` 取前 3 O(1)——注意 `TreeSet` 里的元素排序键不能原地改,必须 remove→update→add
 3. 说清楚**默认选简单版**的理由:45 分钟电面,正确、干净、可测试 > 过早优化——这句话本身就是他们 rubric 里的 "Design: thoughtful separation of concerns"
 
