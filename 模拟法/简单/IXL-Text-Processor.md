@@ -1,110 +1,233 @@
-# IXL Interview — Text Processor(最后一个字符几字节)
+# IXL Interview — Text Processor (Size of the Last Character)
 
-![Topic](https://img.shields.io/badge/topic-Array%20Scan%20%2B%20Parity-00695c) ![Frequency](https://img.shields.io/badge/%E7%94%B5%E9%9D%A2%E5%87%BA%E7%8E%B0-2%20%E6%AC%A1-orange) ![Tests](https://img.shields.io/badge/tests-11%20passed-brightgreen)
+**Phone-screen frequent** · `Array Scan` · `Parity` · `Java byte` · reskin of [LC 717 ↗](https://leetcode.com/problems/1-bit-and-2-bit-characters/)
 
-> **一句话**:[LC 717. 1-bit and 2-bit Characters](https://leetcode.com/problems/1-bit-and-2-bit-characters/) 换皮 —— 把 bit 换成 byte,阈值换成 127。
-> 还原自面经 #2 / #13(电面 / tech screening 高频);代码 JDK 21 编译,11 组测试通过。
+> **One-liner:** LC 717 with bits→bytes and the flag→127. Same skeleton, three extra layers: the **big-file follow-up**, the **signed-byte trap**, and **hex literacy**.
+
+A text file uses a special encoding — every character is 1 or 2 bytes:
+
+| First byte | Character size |
+|---|---|
+| **≤ 127** | one byte, stands alone |
+| **> 127** | leads a **two-byte** character; the 2nd byte can be **any** value (0–255) |
+
+Return the size (1 or 2) of the **last** character. The file is well-formed.
+
+```text
+int getSizeOfLastChar(int[] data)
+
+[127, 128, 126]  →  2     parsed as  127 | (128, 126)
+[122, 123, 124]  →  1     parsed as  122 | 123 | 124
+```
+
+**Mapping to LC 717:** bit → byte · `0` → `≤127` · `1` → `>127` · boolean → int(1/2). The core insight carries over unchanged: **the first byte alone tells you the character's length → every parsing step is forced → zero ambiguity → one linear scan, no DP.** (This is exactly how prefix codes / UTF-8 achieve instant decoding.)
 
 ---
 
-## 题面还原
+## Solution 1 — forward scan (write this first)
 
-我们需要处理一种特殊编码的文本文件。文件中每个字符编码为 1 个或 2 个字节:
-
-- 若字符的首字节 **≤ 127**,该字节单独构成一个字符(单字节字符)
-- 若字符的首字节 **> 127**,它是双字节字符的第一个字节
-- 双字节字符的**第二个字节可以是任意值**(0–255)
-
-写一个方法,计算文件**最后一个字符的大小**:是 1 字节还是 2 字节?
+Simulate parsing: `≤127` jumps 1, `>127` jumps 2, but **never consume the last byte** (loop while `i < n-1`). Then read the landing spot:
 
 ```text
-签名:int getSizeOfLastChar(int[] data)   // data 为文件内容
-
-例1: [127, 128, 126] → 2    解析:127 | (128, 126)
-例2: [122, 123, 124] → 1    解析:122 | 123 | 124
+landed ON n-1   →  the final byte forms its own character   →  1
+jumped TO n     →  it was captured as someone's 2nd byte    →  2
 ```
 
-可以假设文件是 **well-formed** 的(不会出现残缺的双字节字符)。
+```java
+int i = 0;
+while (i < data.length - 1) {
+    i += (data[i] > 127) ? 2 : 1;
+}
+return (i == data.length - 1) ? 1 : 2;
+```
 
-## 与 LC 717 的差异
+---
 
-| 维度 | LC 717 | IXL Text Processor |
+## Solution 2 — backward scan (the follow-up answer)
+
+> **Count the run of `>127` bytes immediately before the last byte.
+> Even count → 1. Odd count → 2.**
+
+### Worked examples
+
+Notation: `B` = byte `>127` (can lead a pair) · `s` = byte `≤127` (always standalone).
+
+| Array | Shape | Bs before last | Parity | Answer |
+|---|---|---|---|---|
+| `[100, 200, 201, 202, 203, 50]` | `s B B B B s` | 4 | even | **1** — `100 \| (200,201) \| (202,203) \| 50` |
+| `[100, 200, 201, 202, 50]` | `s B B B s` | 3 | odd | **2** — `100 \| (200,201) \| (202,50)` |
+| `[100, 200, 150]` | `s B B` | 1 | odd | **2** — `100 \| (200,150)` |
+| `[130, 131, 100, 50]` | `B B s s` | 0 | even | **1** — `(130,131) \| 100 \| 50` |
+
+Row 3 kills the classic wrong instinct: **150 > 127, but it is NOT a new character's first byte** — a byte's role is decided by *where the parser stands when it reaches it*, not by its own value ("the 2nd byte can be any value" includes >127).
+
+Row 4 shows why `k = 0` belongs with "even": the byte before the last is an `s`, which finishes as its own character — the parser lands cleanly on the last byte, same ending as any even count.
+
+### Why counting alone is enough — the entry point is locked
+
+```text
+index:   ...   s    B  B  B  B   [last]
+               ↑    ↑
+               │    └── the parser MUST enter the run exactly here
+               └── ≤127: always its own character,
+                   and can never be anyone's FIRST byte
+```
+
+1. Look at the byte **before** the run (an `s`, or the array start). An `s` always forms its own character — so after consuming it, the parser stands **exactly on the run's first `B`**. Could that first `B` instead be some pair's *second* byte? No — its leader would have to be the `s` before it, but leaders must be `>127`. **Contradiction → entry point locked.**
+2. From there every step is mechanical: standing on a `B` → lead a pair → eat 2. The pairing has **no second possibility**, so only the run's length parity matters:
+
+```text
+even:   [B B] [B B] ... [B B] │ last     → lands ON last → stands alone → 1
+odd:    [B B] [B B] ... [B ??]           → lone leader grabs last as 2nd byte → 2
+```
+
+### Why the count starts at `length - 2`
+
+```java
+int i = data.length - 2;                      // first WITNESS, just before the last byte
+while (i >= 0 && (data[i] & 0xFF) > 127) {    // walk left through the run
+    count++;
+    i--;
+}
+```
+
+The last byte (`length - 1`) is the **defendant, not a witness** — its fate is decided by the bytes before it, so it never joins the count. Counter-example: `[100, 200, 150]` — include the last byte and count = 2 → even → wrong "1"; start at `n-2` and count = 1 → odd → correct "2". The `i >= 0` guard is the `-2`'s paired seatbelt: for a single-element array, `i = -1`, the loop never runs, count = 0 → 1 ✓.
+
+### Why this is the follow-up answer
+
+The problem says *file*. For a multi-GB file the forward scan must read from byte 0; the backward scan just **seeks to the end and reads back until the first `≤127`** — usually a handful of bytes. That is the answer to *"what if the file is huge?"*, and it's the real-world motivation behind self-synchronizing encodings like UTF-8 (worth saying out loud).
+
+---
+
+## The Java `byte` trap
+
+### One byte = one number (cells, not bits)
+
+The file is just **a list of numbers, each 0..255 — one number per cell**:
+
+```text
+[ 100 ] [ 200 ] [ 150 ]     ← 3 cells, 3 numbers, length == 3
+```
+
+`length` counts **cells**, not bits. The same 100-byte file stored as `byte[]` or `int[]` gives `length == 100` either way — `byte[]` just spends 1 byte per cell instead of 4 (memory, not count). So all index logic (`- 2`, `i--`, `i >= 0`) is **cell-level and identical** in both versions. The type matters at exactly one moment: **reading the number out of a cell.**
+
+### Two ways to read the same 8 bits
+
+Bits carry no inherent meaning — the reading convention does:
+
+| Bits | Unsigned (the problem's meaning) | Java `byte` (signed two's complement) |
 |---|---|---|
-| 单位 | bit(0 / 1) | byte(0–255) |
-| 单字符标志 | `0` | `≤ 127` |
-| 双字符首位 | `1` | `> 127` |
-| 返回 | boolean(最后是否 1-bit) | int(1 或 2) |
-| 包装 | 裸数组 | "文件处理"场景 → 引出**大文件只读尾部**的 follow-up |
+| `00000000`..`01111111` | 0..127 | 0..127 — **identical** |
+| `10000000`..`11111111` | 128..255 | **−128..−1 — all negative** (value − 256) |
 
-结构完全同构,解法一一对应。
+The top bit carries weight **−128** in Java's reading. **Java has no unsigned byte** — `byte` is always the signed convention. So file byte 200 (`11001000`) is stored fine, but *read out* as **−56**.
 
-## 两种解法
+### The bug — `data[i] > 127` is vacuously false
 
-### 解法一:正向扫描 O(n) —— 先写这个
+A Java `byte`'s maximum value **is 127**. On `byte[]`, the condition can never be true — every byte gets treated as one-byte, the function **returns 1 for every input**, with **no compile error, no exception, no warning**. Tests that only use values ≤127 stay green. Correct algorithm, broken comparison, total silence — the worst class of bug.
 
-从头模拟解析:遇 ≤127 跳 1 格,遇 >127 跳 2 格,但**永远不消费最后一个字节**(循环条件 `i < n-1`)。循环结束时:
+```text
+[200, 201]  →  stored as −56, −55  →  −56 > 127? false  →  jump 1  →  returns 1  ✗ (true answer: 2)
+```
 
-- `i == n-1`:指针恰好停在最后一个字节上 → 它自成一个字符 → **1**
-- `i == n`:上一个字符把倒数第二个字节当作首字节吞了 → 最后两字节是一个字符 → **2**
+### Fix 1 — `(data[i] & 0xFF) > 127`: switch back to the unsigned reading
 
-### 解法二:反向扫描 —— follow-up 的答案
+Comparison first **promotes** the byte to `int`, and promotion is **sign-extending** (upper 24 bits copy the sign bit). `& 0xFF` zeroes those 24 bits and keeps the low 8 — the original unsigned value returns, inside an `int` big enough to hold it:
 
-数**最后一个字节之前、连续 > 127 的字节个数** `k`:
+```text
+byte −56:                              11001000
+int  −56:   11111111 11111111 11111111 11001000    ← sign-extended
+        AND 00000000 00000000 00000000 11111111    ← 0xFF
+        =   00000000 00000000 00000000 11001000    =  200  ✓
+```
 
-- `k` 为偶数 → 最后一个字节自成字符 → **1**
-- `k` 为奇数 → 它是双字节字符的第二字节 → **2**
+**`& 0xFF` = "give me these 8 bits read as unsigned."** The standard incantation wherever raw bytes enter Java (file I/O, sockets, pixels). Note it converts the **value being read**, never the array — each loop iteration translates its own `data[i]` on the spot, so forward and backward scans use it identically.
 
-**为什么成立**:设这段连续 >127 的区间从下标 `s` 开始(`s-1` 处 ≤127 或 `s=0`)。下标 `s` 必然是某个字符的**开头**——因为如果它是某对的第二字节,那这对的首字节在 `s-1`,而首字节必须 >127,与 `s-1 ≤ 127` 矛盾。从 `s` 起字符两两成对消费这段区间,所以最后一个字节归属只由区间长度的奇偶性决定。
+### Fix 2 — `data[i] < 0`: read the sign bit directly
 
-**为什么这是亮点**:题面说的是"处理文件"。文件很大时,正向解法必须从第 0 个字节读到尾;反向解法只需 seek 到文件末尾、往回读到第一个 ≤127 的字节就停(通常几个字节)。面试官问"如果文件有几个 GB 怎么办",答案就是它。这也正是 UTF-8 这类自同步编码在真实世界的设计动机,提一句会很出彩。
+```text
+unsigned ≥ 128   ⟺   top bit is 1   ⟺   Java reads it as negative
+```
 
-## 参考实现
+Three descriptions of the same bit patterns, so `data[i] < 0` selects exactly the bytes the problem calls `>127`. Shorter, zero bit-twiddling — **but it only works because the threshold (127/128) sits precisely on the sign boundary**. Change the threshold to 100 and `< 0` is useless while `(b & 0xFF) > 100` still works. Say that trade-off out loud for full credit.
 
-先自己限时 15 分钟写一遍(两种解法都写),再展开对照 👇
+**Never mix the two fixes:** `(data[i] & 0xFF) < 0` is always false (after masking, values are 0..255 — never negative). Translate-then-compare-`>127`, or don't-translate-and-compare-`<0`. Pick one lane.
+
+### The layered picture
+
+```text
+storage:   [11001000]           8 bits in a cell            ┐  type-independent —
+cells:     cell #i; length counts cells                     ┘  identical for byte[]/int[]
+
+reading:   signed glasses   →  −56    (Java's default)      ┐  the ONLY layer where
+           unsigned glasses →  200    (& 0xFF switches)     ┘  byte[] differs
+```
+
+### The real interview move
+
+Ask **before writing line one**: *"Is the input `int[]` or `byte[]`?"* — the answer decides how the core comparison is written. Ask → hear `byte[]` → narrate the trap and the fix. The trap becomes your stage.
+
+---
+
+## Hex sidebar — what `0xFF` actually is
+
+`0x` prefix = **hexadecimal** (base 16, digits `0-9` then `A-F` = 10..15). `0xFF = 15×16 + 15 = 255` — same number, different notation.
+
+Why programmers love hex: **one hex digit = exactly 4 bits** (16 = 2⁴), so hex is binary shorthand — a byte is exactly **two hex digits**, and every bit stays visible:
+
+| Hex | Binary | Decimal | Meaning here |
+|---|---|---|---|
+| `0x00` | `00000000` | 0 | minimum |
+| `0x7F` | `01111111` | 127 | **the threshold** — sign bit still 0 |
+| `0x80` | `10000000` | 128 | one past it — **sign bit flips** |
+| `0xC8` | `11001000` | 200 | the example byte |
+| `0xFF` | `11111111` | 255 | maximum; **the 8-bit mask** |
+
+Every key number in this problem *looks meaningful* in hex — `0x7F/0x80` visibly straddle the sign boundary, which decimal 127/128 hides. And `& 0xFF` vs `& 255`: identical to the machine, but `0xFF` (two F's = eight 1s = one byte wide) tells the human **"keep the low 8 bits"** at a glance. Hex is for readers, not compilers.
+
+---
+
+## Reference implementation
 
 <details>
-<summary><b>展开完整代码(含 11 组测试)</b></summary>
+<summary><b>Full code — forward + backward + <code>byte[]</code> version, 11 tests</b></summary>
 
 ```java
 import java.util.*;
 
 public class TextProcessor {
 
-    /** 解法一:正向扫描 O(n) —— 面试先写这个 */
+    /** Forward scan O(n) — write this first in the interview. */
     public static int getSizeOfLastCharForward(int[] data) {
         if (data == null || data.length == 0) {
-            throw new IllegalArgumentException("data must be non-empty"); // 澄清点:null/空文件
+            throw new IllegalArgumentException("data must be non-empty");
         }
         int i = 0;
         while (i < data.length - 1) {
             if (data[i] > 127) {
-                i += 2;   // 双字节字符,跳两格
+                i += 2;   // two-byte character
             } else {
-                i += 1;   // 单字节字符
+                i += 1;   // one-byte character
             }
         }
-        // 恰好落在最后一个下标上 = 最后是单字节;越过去了 = 最后两个字节是一个字符
         return i == data.length - 1 ? 1 : 2;
     }
 
-    /** 解法二:反向扫描 —— follow-up("文件很大怎么办")的答案,只需读文件尾部 */
+    /** Backward scan — the big-file follow-up: only reads the tail. */
     public static int getSizeOfLastCharBackward(int[] data) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("data must be non-empty");
         }
-        // 数最后一个字节之前、连续 > 127 的字节个数
         int count = 0;
-        int i = data.length - 2;
+        int i = data.length - 2;              // first witness; the last byte never counts
         while (i >= 0 && data[i] > 127) {
             count++;
             i--;
         }
-        // 偶数个 -> 最后一个字节自成一个字符;奇数个 -> 它是双字节字符的第二个字节
         return count % 2 == 0 ? 1 : 2;
     }
 
-    /** Java 特有陷阱:如果给的是 byte[],byte 是有符号的(-128..127),"> 127" 永远为假!
-     *  必须用 (b & 0xFF) > 127,或等价地 b < 0 来判断。 */
+    /** byte[] version — the signed-byte trap: (b & 0xFF) > 127, never b > 127. */
     public static int getSizeOfLastChar(byte[] data) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("data must be non-empty");
@@ -118,7 +241,7 @@ public class TextProcessor {
         return count % 2 == 0 ? 1 : 2;
     }
 
-    // ---------------- 测试 ----------------
+    // ---------------- tests ----------------
     private static void check(boolean cond, String msg) {
         if (!cond) throw new AssertionError(msg);
     }
@@ -129,21 +252,21 @@ public class TextProcessor {
     }
 
     public static void main(String[] args) {
-        verifyBoth(new int[]{127, 128, 126}, 2, "case1");        // 面经原例:127 | (128,126)
-        verifyBoth(new int[]{122, 123, 124}, 1, "case2");        // 面经原例:全单字节
-        verifyBoth(new int[]{100}, 1, "case3");                  // 单元素(well-formed 必 <=127)
-        verifyBoth(new int[]{200, 201}, 2, "case4");             // 恰好一对
-        verifyBoth(new int[]{200, 200, 200, 200}, 2, "case5");   // 全是 >127:两对
-        verifyBoth(new int[]{100, 200, 150}, 2, "case6");        // 第二字节 >127:100 | (200,150)
-        verifyBoth(new int[]{126, 128, 128, 126}, 1, "case7");   // 126 | (128,128) | 126
-        verifyBoth(new int[]{200, 128, 128, 126}, 2, "case8");   // (200,128) | (128,126)
-        verifyBoth(new int[]{128, 0}, 2, "case9");               // 第二字节可以是 0
+        verifyBoth(new int[]{127, 128, 126}, 2, "case1");        // 127 sits ON the threshold
+        verifyBoth(new int[]{122, 123, 124}, 1, "case2");        // all single
+        verifyBoth(new int[]{100}, 1, "case3");                  // single element
+        verifyBoth(new int[]{200, 201}, 2, "case4");             // exactly one pair
+        verifyBoth(new int[]{200, 200, 200, 200}, 2, "case5");   // all >127: two pairs
+        verifyBoth(new int[]{100, 200, 150}, 2, "case6");        // 2nd byte also >127
+        verifyBoth(new int[]{126, 128, 128, 126}, 1, "case7");   // pair in the middle
+        verifyBoth(new int[]{200, 128, 128, 126}, 2, "case8");   // run parity
+        verifyBoth(new int[]{128, 0}, 2, "case9");               // 2nd byte can be 0
 
-        // byte[] 版:0xC8 = 200,有符号下是 -56,验证 & 0xFF 处理正确
+        // signed-byte trap, live fire: (byte) 200 is −56
         check(getSizeOfLastChar(new byte[]{(byte) 200, (byte) 201}) == 2, "byte[] case failed");
         check(getSizeOfLastChar(new byte[]{100, 101}) == 1, "byte[] case2 failed");
 
-        // null / 空输入(IXL 的 "what would break your code" 固定追问)
+        // defensive boundaries — and PROOF they fire
         try { getSizeOfLastCharForward(null); check(false, "null should throw"); }
         catch (IllegalArgumentException e) { /* expected */ }
         try { getSizeOfLastCharBackward(new int[]{}); check(false, "empty should throw"); }
@@ -156,32 +279,31 @@ public class TextProcessor {
 
 </details>
 
-## 测试用例一览
+Every test guards a specific hole: `127` presses the threshold edge (a stray `>=` dies here) · `[100,200,150]` guards "2nd byte may be >127" · `[128,0]` guards "2nd byte may be 0" · the `(byte) 200` case fires the signed trap for real · null/empty **verify the defenses actually throw** (defense unproven is defense absent). `verifyBoth` cross-checks two independent algorithms against each other — stronger than checking either alone.
 
-| # | 输入 | 期望 | 场景 |
-|---|---|---|---|
-| 1 | `[127, 128, 126]` | 2 | 面经原例,127 恰好压着阈值边界 |
-| 2 | `[122, 123, 124]` | 1 | 面经原例,全单字节 |
-| 3 | `[100]` | 1 | 单元素 |
-| 4 | `[200, 201]` | 2 | 整个文件就是一对 |
-| 5 | `[200, 200, 200, 200]` | 2 | 全部 >127,连成两对 |
-| 6 | `[100, 200, 150]` | 2 | **第二字节也 >127**,别把它当首字节 |
-| 7 | `[126, 128, 128, 126]` | 1 | 中间夹一对,最后独立 |
-| 8 | `[200, 128, 128, 126]` | 2 | 连续 >127 奇偶判断 |
-| 9 | `[128, 0]` | 2 | 第二字节可以是 0 |
-| 10 | `byte[]{(byte)200, ...}` | 2 | **signed byte 陷阱**(见下) |
-| 11 | `null` / `[]` | 抛异常 | IXL 固定追问的边界 |
+---
 
-## 面试当场要确认的澄清点
+## Clarify before coding
 
-- [ ] 输入类型是 `int[]` 还是 `byte[]`?(Java 的 `byte` 有符号,直接影响写法)
-- [ ] `null` / 空数组怎么处理?(本实现:抛异常;IXL 必追问这个)
-- [ ] 返回形式:1/2、boolean、还是枚举?
-- [ ] well-formed 是否保证?(题面说保证;若不保证,残缺对怎么报错)
-- [ ] 文件很大、无法全部载入内存时怎么办?(→ 反向解法,seek 到尾部往回读)
+- [ ] Input type: `int[]` or `byte[]`? *(decides the comparison — the trap lives here)*
+- [ ] `null` / empty: throw? return a sentinel? *(this implementation throws; IXL always probes it)*
+- [ ] Return form: 1/2, boolean, enum?
+- [ ] Is well-formed guaranteed? If not, how to report a dangling first byte?
+- [ ] File too large for memory? *(→ backward scan: seek to end, read back)*
 
-## Java 细节(说出来是加分项)
+---
 
-- **signed byte 陷阱**:`byte` 范围是 −128..127,`data[i] > 127` 对 `byte[]` 永远为假;要写 `(data[i] & 0xFF) > 127`(或等价的 `data[i] < 0`)。题面原型是 `byte`,面试官很可能就在等这个
-- 127/128 恰好是阈值两侧,测试用例 1 里的 `127` 是故意的,别写成 `>= 127`
-- 反向解法讲清正确性:连续 >127 区间的起点必是字符开头(反证:若是第二字节,则其首字节在区间外却 >127,矛盾)→ 区间内两两成对 → 奇偶定归属
+## Complexity
+
+| Metric | Forward | Backward |
+|---|---|---|
+| Time | O(n) | O(n) worst, **O(tail run)** typical — only the end of the file |
+| Space | O(1) | O(1) |
+
+---
+
+## 30-second interview script
+
+> "First byte ≤127 → one-byte char; >127 → leads a two-byte char — **every step is forced, zero ambiguity**, so it's a single scan, no DP. Forward: jump 1 or 2, stop before the last byte, the landing spot decides. For huge files, backward: the run of >127 bytes before the last one has a **locked entry point** (the ≤127 before it must stand alone), pairs consume it two at a time, so **parity alone decides** — seek to the end, read a few bytes. And if the input is `byte[]`: Java bytes are signed, `>127` is vacuously false — I'd use `(b & 0xFF) > 127`, or `b < 0` since this threshold sits exactly on the sign boundary."
+
+**Think about it:** `[130, 130, 130]` is *not* well-formed (three `>127` bytes can't pair off). Both solutions still answer 1, in agreement, without noticing. Where does each one silently *use* the well-formed guarantee? *(Forward: "the landing spot is only ever n−1 or n." Backward: "a lone leader can always grab a next byte.")*
