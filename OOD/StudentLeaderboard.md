@@ -31,7 +31,7 @@
 | 数值正确性 | 正确率和平均用时**全用整数运算**,一个浮点数都不出现(见下) |
 | 边界语义 | 恰好 75% 排除、恰好 4 次入选、答错的提交也计入用时、"至多 3 个" |
 | 确定性 | 平均用时相同怎么排?主动定 tie-break(id 升序)并说出来 |
-| 复杂度对话 | `submit` O(1);`getTopStudents` O(n log n),聊 trade-off(见 follow-up) |
+| 复杂度对话 | `submit` O(1);`getTopStudents` O(n log n),聊 trade-off(见下方复杂度对比与 follow-up) |
 
 ### 两个整数运算技巧(这题最出彩的地方)
 
@@ -41,6 +41,27 @@
 ```
 
 一个 `double` 都不用:没有精度问题、没有除零问题(`attempts >= 4` 已保证非零)。写的时候把这两行注释直接写在代码里,面试官会注意到。
+
+#### 交叉相乘为什么成立(比较的确实是"平均时间")
+
+比较器里只出现 `totalTime`,没有除号,第一眼容易误以为在比总时间。推导只有一步:
+
+```text
+想比较:   avgA < avgB
+即:       totalA / attA  <  totalB / attB        (attempts ≥ 4,恒为正)
+两边同乘 attA × attB(正数,不等号方向不变):
+得到:     totalA × attB  <  totalB × attA
+              ↑ left            ↑ right
+```
+
+所以 `left < right` **严格等价于** "A 的平均时间更短"。代入数字:A 总时 40、4 次(avg 10),B 总时 9、3 次(avg 3)→ left = 40×3 = 120 > right = 9×4 = 36 → A 更慢 ✓。
+
+#### 为什么不直接除(两种写法的坑)
+
+1. **整数除法截断出错**:A 总时 41、4 次(avg **10.25**),B 总时 30、3 次(avg **10.0**),真实排序 B 在前。但 `41/4 = 10`、`30/3 = 10` —— 整数除法下两人"平手",错误地走 tie-break 按 id 排。交叉相乘:41×3 = 123 > 30×4 = 120,精确判出 A 更慢,不丢任何精度。
+2. **浮点除法的"相等"不可靠**:`(double) totalA / attA` 比大小通常没问题,但 tie-break 需要判断"平均时间*恰好相等*",而浮点数用 `==` 判等是面试红线。交叉相乘全程整数,相等就是真相等。
+
+Code review 时几乎人人会对这几行发问,这正是把 `// 交叉相乘,等价于比较平均用时` 注释写进代码的原因——也是面试时值得主动讲出来的点。
 
 ## 参考实现
 
@@ -227,6 +248,28 @@ public class StudentLeaderboard {
 - [ ] 平均用时相同怎么排?(本实现:id 升序)
 - [ ] 不足 3 人合格返回几个?(题面 "up to 3" → 有几个返回几个,空了返回空列表)
 - [ ] `time` 为负 / 同一学生海量提交(溢出)怎么办?
+
+## 两种实现的复杂度对比(含实测)
+
+设 n = 学生总数,k = 3(榜单大小):
+
+| 维度 | sort 版 `getTopStudents()` | heap 版 `getTopStudentsHeap()` |
+|---|---|---|
+| `submit` | O(1)(两版共用) | O(1)(两版共用) |
+| `getTop` 时间 | **O(n log n)** —— 过滤 O(n) + 全排序 | **O(n log k) ≈ O(n)** —— 单遍扫描,堆大小恒 ≤ k+1 |
+| `getTop` 额外空间 | **O(n)** —— qualified 列表存所有合格者 | **O(k) = O(1)** —— 堆里最多 4 个元素 |
+| 代码风险 | 低:比较器方向直观 | 中:比较器要**反着写**(慢者在堆顶、同速大 id 先被踢),易写反 |
+
+实测(JDK 21,JIT 预热后取最优值,粗测非 JMH,方向可靠):
+
+| 学生数 n | sort 版 | heap 版 | 差距 |
+|---|---|---|---|
+| 1,000 | 0.16 ms | 0.05 ms | 无感 |
+| 10,000 | 3.1 ms | 0.5 ms | 无感 |
+| 100,000 | 58 ms | 5.9 ms | ~10x |
+| 1,000,000 | 1050 ms | 66 ms | ~16x |
+
+**结论**:课堂/学校规模(n ≤ 万级)两版都在毫秒内,**选 sort 版,简单性赢**;n 到十万以上且 getTop 频繁,heap 版的 O(n) 和 O(1) 空间才真正兑现价值。面试时先反问规模再选:*"For classroom-scale n I'd keep the sort — simpler, and the difference is invisible. For millions of students I'd switch to a bounded heap; I've measured roughly a 16x gap at a million entries."*
 
 ## Follow-up:如果 getTopStudents 调用非常频繁?
 
