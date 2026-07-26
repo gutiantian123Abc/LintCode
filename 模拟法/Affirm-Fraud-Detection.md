@@ -630,30 +630,179 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 6. **Java 版 customer_details 可能是 `Map<String, Object>`**(因为 credit_score 是 int)—— 白名单只取 4 个字段可自然绕开;若必须转型,用 `value instanceof String s` 模式匹配,别盲目 cast。
 7. 干净事件的 PII 被顺手存了 → 内存白涨,而且语义就错了(它们不可疑)。
 
-## 六、必备 Follow-up 问答(#19 面试官真问过这两个)
+## 六、必备 Follow-up 问答(详解版)
 
-**Q:为什么用 HashSet?**
-需求只有两个操作:值级去重、"这个值出现过吗"。HashSet 提供均摊 O(1) 的 add/contains。不需要排序所以不用 TreeSet(O(log n));不需要计数所以不用 HashMap;要"每值只算一次"所以不能用 List(contains 是 O(n))。
+#19 面经原话:"面试官临时想了几个 follow up:**为什么要用这个数据结构;如果这是 production service,你要做什么改变**;等等。" HR 邮件也明说 "Be prepared to explain what changes you'd make before deploying code to production" —— 这部分不是加分题,是必考题。
 
-**Q:上 production 前你会改什么?**(HR 邮件明说会问这个,背熟)
+回答框架:每条按 **现状缺陷 → 怎么改 → 权衡** 三段说。挑 3~4 条讲透,比 8 条念清单强得多。
 
-- **PII 安全:** 明文 SSN/电话放内存、打日志都不可接受 —— 存加盐哈希(如 HMAC-SHA256),相等匹配照常工作;日志脱敏。
-- **状态外置:** 单机内存重启即丢、多实例各存一份会不一致 → suspicious 集合放 Redis/DB,或事件流(Kafka)重放恢复。
-- **输入校验:** schema 校验,malformed event 进死信队列(DLQ)而不是把消费者打崩。
-- **并发:** 多线程消费用 `ConcurrentHashMap.newKeySet()`,或按 key 分区保证单分区串行。
-- **可观测性:** 事件计数、"1" 命中率、处理延迟的 metrics + 告警(命中率突变往往意味着上游数据问题)。
-- **误报治理:** 公寓楼共享地址、家庭共用电话会造成"传染误伤" → 字段加权评分代替一票否决、白名单、人工复核队列。
-- **幂等:** 事件重放不应产生副作用(set 语义天然幂等,但对外输出/写库要带事件 id 去重)。
-- **增长控制:** suspicious 集合只增不减 → TTL、容量上限、冷数据下沉。
+### Q1:为什么用 HashSet?(数据结构选型)
 
-**Q:数据量大到单机放不下怎么办?**
-集合外置 Redis Cluster;或本地 Bloom filter 做一级过滤(可能假阳性,命中后再查权威存储确认)。
+30 秒话术:"需求只有两个操作——值级去重和'这个值出现过吗'。HashSet 的 add/contains 是均摊 O(1),正好是它最强的两项。不需要顺序所以不用 TreeSet(每次 O(log n));不需要给值挂附加信息所以不用 HashMap;List.contains 是 O(n),n 条事件总成本 O(n²),不可接受。"
 
-## 七、变体预警(#25 店面的第三问)
+被追问时的弹药:
 
-> "实现功能:记录 Fraud 的 Transaction 信息加入 Fraud Event 里,最后找出所有的 Fraud。"
+- **均摊 O(1) 从哪来:** hashCode → 定位桶 → 桶内比对;哈希分布均匀时每桶平均 0~1 个元素。扩容(默认 load factor 0.75,容量翻倍 rehash)单次 O(n),但翻倍策略保证摊销后每次插入仍 O(1)——主动说出 "amortized" 这个词。
+- **最坏情况:** 大量碰撞挤进同一桶。Java 8+ 单桶超 8 个且桶数组容量 ≥ 64 时,链表树化为红黑树,退化上限 O(log n)(Java 7 及以前是 O(n))。
+- **字符串细节:** 严格说 add/contains 是 O(L)(L 为串长,算哈希要扫一遍字符),但 String 会缓存自己的 hashCode,且 PII 都是短串,视为常数。
+- **hashCode/equals 契约:** equals 相等 ⇒ hashCode 必须相等;可变对象入 set 后再改字段,就再也 contains 不到它(经典事故)。String 不可变,天然安全。
+- **小优化:** 预知规模时 `new HashSet<>((int)(expected / 0.75f) + 1)` 一次到位,避免反复 rehash。
 
-思路:给每个 underwriting 事件一个 transactionId(入参或自增序号),维护 `List<Long> flaggedTransactionIds`(或 `Map<Long, Event>`);判定为可疑时记录 id;最后加一个 `getAllFraudulentTransactions()` 返回。核心状态机不变,只是多存一份"哪些交易被标记"。若 fraud_flag 带 transaction id 引用历史交易,问清是否要回溯标记那笔历史交易。
+### Q2:上 production 前你会改什么?(八个方向,每个都是"缺陷 → 改法")
+
+**1. PII 安全(fintech 面试最好第一个说)**
+缺陷:明文 SSN/电话放在堆内存、可能被打进日志——heap dump 或日志泄漏就是事故,合规上也过不去。
+改法:集合里存 **HMAC-SHA256(带密钥的哈希)** 而不是明文——确定性哈希让相等匹配照常工作,但值不可逆推。追问点:为什么是 HMAC 不是普通 SHA256?因为电话/SSN 是**低熵值**(10 位数字可枚举),无密钥哈希能被字典暴破;密钥放 KMS。另外:日志只打事件 id 和掩码(`***-**-8929`),永不打原值。
+
+**2. 状态外置(共享 + 持久)**
+缺陷:进程内 HashSet 重启即丢;水平扩容后每个实例只见过自己那份流量,漏判。
+改法:黑名单放 **Redis**(SADD / SISMEMBER 都是 O(1)),所有实例共享;或 DB 表 + 唯一索引;或 Kafka compacted topic,启动时重放重建本地缓存。
+权衡:每次判定多一跳网络(毫秒级)。题干说 "produce a decision in seconds",预算足够;更苛刻时热点值加本地缓存 + 短 TTL。
+
+**3. 输入校验 + 毒丸隔离**
+缺陷:一条畸形事件(缺 customer_details、类型不对)抛异常,能卡死整个分区的消费。
+改法:schema 校验(JSON Schema / protobuf);单条 try-catch,坏事件进**死信队列(DLQ)**留证 + 告警,流水不断。DLQ 速率本身是个监控指标。
+
+**4. 并发与原子性**
+缺陷:HashSet 非线程安全;更深一层,"先查后加"是两步操作,并发下两条相关欺诈可能同时查询、互相看不见、双双放行。
+改法:简单档换 `ConcurrentHashMap.newKeySet()`;正确档是**保证判定的原子性**——按 key 分区串行(但注意:传染跨字段、黑名单是全局的,按单一字段分区行不通),或外部存储做原子"查+加"(Redis Lua 脚本 / SMISMEMBER+SADD 事务)。能指出"分区难在传染是跨 key 的",是这题并发讨论的最亮点。
+
+**5. 可观测性**
+改法:metrics——各类型事件 QPS、"1" 命中率、黑名单大小、处理延迟 p99、DLQ 计数;告警——命中率突变(可能是攻击,也可能是上游数据坏了,两种都要人看);日志结构化且不含 PII。
+
+**6. 误报治理(风控产品思维,Affirm 爱听)**
+缺陷:公寓楼/宿舍共享地址、家人共用电话 → 一条 fraud_flag 把整栋楼"传染"成可疑,而且级联放大。
+改法:字段加权(ssn 命中 ≫ address 命中)+ 阈值,代替"任一命中一票否决";**共享值豁免**(一个 address 出现在超过 N 个不同用户名下,自动降权/白名单);传染深度上限;边界案例进人工复核队列,而不是直接拒贷。
+
+**7. 幂等与顺序**
+缺陷:消息系统至少一次投递(at-least-once),同一事件可能被处理两次;跨分区还可能乱序。
+改法:set 的 add 天然幂等(主动说出这个好性质),但**对外副作用**(写决策库、发通知)要按事件 id 去重;顺序上,决策依赖处理顺序,重放时必须按原序,否则输出会变。
+
+**8. 增长控制**
+缺陷:黑名单只增不减,内存/存储无限涨。
+改法:TTL(欺诈信号是否随时间衰减——这是要和风控团队定的**业务问题**,面试里点出"这不是纯技术决定"很加分)、冷热分层(热值内存、冷值 DB)、定期压缩。
+
+### Q3:数据量大到单机放不下怎么办?
+
+Redis Cluster 按值哈希分片,容量水平扩展;判定路径想省网络调用,本地放一个 **Bloom filter** 做一级过滤:它**没有假阴性**(说"不在"就一定不在,直接放行),少量假阳性(说"在"再去权威存储二次确认)。粗算:10 亿个值、1% 误报率约 1.2 GB,单机放得下。需要删除语义时换 counting / cuckoo filter。配合第 1 条:外置存储里放的本来就是 HMAC 值,分片 key 也用它。
+
+### Q4(高频追问):人工发现标错了,要撤销(un-flag)怎么办?
+
+`remove(value)` 本身一行,难的是**传染出来的衍生黑值**:它们"因它而黑",删掉源头不会自动回滚下游。两条路:(a) 记 provenance——每个值因哪个事件入黑,构成依赖图,撤销时沿图回收(实现重、易错);(b) **事件溯源(event sourcing)**——状态本来就是事件流的确定性函数,把那条 fraud_flag 标记为作废,然后**重放全流重建状态**。面试答 (b) 通常最漂亮,还自然引出"为什么流式系统偏爱可重放架构"。
+
+## 七、变体详解(#25 店面的第二、三问)
+
+#25 面经原文的三问结构:"Part 1 debug;Part 2 **实现功能用 Fraud Event match transaction**;Part 3 **记录 Fraud 的 Transaction 信息加入 Fraud Event 里,最后找出所有的 Fraud**。"
+
+### 第一步永远是问清语义 —— 三个档位难度差很大
+
+- **档位 A(最可能是这个):** 边处理边收集——凡是被判 `"1"` 的交易记下 id,最后 `getAllFraudulentTransactions()` 返回。纯增量,10 行代码。
+- **档位 B:** fraud_flag 到来时要**回溯**——共享任一 PII 的**历史**交易也算 fraud。
+- **档位 C:** 全量级联(fraud ring)——被回溯标记的历史交易,它们的其他 PII 也入黑、继续传染,直到闭包。
+
+要问的澄清问题:交易身份是事件自带 id 还是我用自增序号?fraud_flag 匹配历史交易吗(A vs B/C)?被回溯标记的交易,它的其他 PII 还要继续传染吗(B vs C)?输出要什么顺序?
+
+### 档位 A:在 FraudDetector 上加三行状态(先交付这个拿分)
+
+```java
+class FraudDetector {
+    private final Set<String> suspiciousPiiValues = new HashSet<>();
+    private final Set<Long> fraudulentTxnIds = new LinkedHashSet<>(); // insertion order kept
+    private long nextTxnId = 0;
+
+    public String handleEvent(Event event) {
+        List<String> piiValues = extractPiiValues(event);
+        if ("fraud_flag".equals(event.eventType)) {
+            suspiciousPiiValues.addAll(piiValues);
+            return "";
+        }
+        if ("underwriting".equals(event.eventType)) {
+            long txnId = nextTxnId++;                       // NEW: identity per transaction
+            boolean suspicious = piiValues.stream().anyMatch(suspiciousPiiValues::contains);
+            if (suspicious) {
+                fraudulentTxnIds.add(txnId);                // NEW: record it
+                suspiciousPiiValues.addAll(piiValues);
+                return "1";
+            }
+            return "0";
+        }
+        return "";
+    }
+
+    public List<Long> getAllFraudulentTransactions() {     // NEW: final answer
+        return new ArrayList<>(fraudulentTxnIds);
+    }
+}
+```
+
+### 档位 B/C:倒排索引 + BFS(follow-up 弹药,以下代码已实测通过)
+
+核心思路:除了黑名单,再维护两张表——`txnsByValue`(值 → 含它的交易,倒排索引)和 `valuesByTxn`(交易 → 它的值)。**不变量一句话:值入黑的那一刻,回溯扫一遍含它的历史交易(每个值只扫这一次);之后到来的交易在自己的 handleEvent 里前向查黑名单** —— 两个方向都盖住,不重不漏。
+
+```java
+class FraudLedger {
+    private final Set<String> suspiciousValues = new HashSet<>();
+    private final Set<Long> fraudulentTxnIds = new LinkedHashSet<>();
+    private final Map<String, List<Long>> txnsByValue = new HashMap<>(); // inverted index
+    private final Map<Long, List<String>> valuesByTxn = new HashMap<>();
+    private long nextTxnId = 0;
+
+    public String handleEvent(Event event) {
+        List<String> values = extractPiiValues(event);
+        if ("fraud_flag".equals(event.eventType)) {
+            cascade(values);
+            return "";
+        }
+        if ("underwriting".equals(event.eventType)) {
+            long txnId = nextTxnId++;
+            valuesByTxn.put(txnId, values);
+            for (String v : values) {
+                txnsByValue.computeIfAbsent(v, k -> new ArrayList<>()).add(txnId);
+            }
+            boolean suspicious = values.stream().anyMatch(suspiciousValues::contains);
+            if (suspicious) {
+                fraudulentTxnIds.add(txnId);
+                cascade(values); // contagion + retro through newly blackened values
+                return "1";
+            }
+            return "0";
+        }
+        return "";
+    }
+
+    /** BFS: new suspicious value -> historical txns containing it -> their other values -> ... */
+    private void cascade(List<String> seedValues) {
+        Deque<String> queue = new ArrayDeque<>();
+        for (String v : seedValues) {
+            if (suspiciousValues.add(v)) queue.add(v);   // enqueue only NEWLY blackened values
+        }
+        while (!queue.isEmpty()) {
+            String value = queue.poll();
+            for (long txnId : txnsByValue.getOrDefault(value, List.of())) {
+                if (fraudulentTxnIds.add(txnId)) {       // each txn flagged at most once
+                    for (String other : valuesByTxn.get(txnId)) {
+                        if (suspiciousValues.add(other)) queue.add(other);
+                    }
+                }
+            }
+        }
+    }
+
+    public List<Long> getAllFraudulentTransactions() {
+        return new ArrayList<>(fraudulentTxnIds);
+    }
+}
+```
+
+已验证的行为(9 个用例全过):t0{P1,S1} 干净 → 后来 `fraud_flag{S1}` 回溯拉黑 t0,并把 t0 的 P1 也传染入黑 → 新交易 t2{P1,E9} 命中 P1 判 "1" 且 E9 入黑 → t3{E9} 判 "1" → `fraud_flag{P2}` 回溯拉黑 t1{P2,S2} 并传染 S2 → t4{S2} 判 "1"。最终 `[0, 2, 3, 1, 4]`(按被标记的先后顺序)。
+
+档位 B 就是把 cascade 里"继续入黑其他值"的两行去掉(只回溯一层,不再扩散);#25 Part 2 的 "match transaction" 若只是查询不改状态,一行搞定:`txnsByValue.getOrDefault(value, List.of())`。
+
+**复杂度:** 每个值只入队一次、每笔交易只被标记一次 → 全程总成本 O(值-交易边数),摊到每个事件近似常数;空间 O(交易数 × 平均字段数)。
+
+**边界:** 同一交易被多个 fraud_flag 匹配(Set 去重,天然幂等);fraud_flag 无任何匹配(空转,不报错);输出顺序用 LinkedHashSet 保插入序,要排序再加一行。
+
+**面试策略:** #25 帖主提前 15 分钟做完、test case 全过,仍然被拒——大概率输在讨论深度。所以正确姿势是:先交付档位 A 并跑通,然后**主动**说"如果 fraud_flag 需要回溯匹配历史交易,我会加一个倒排索引,值入黑时 BFS 一次……",把富余时间花在这段讨论上,而不是提前结束。
 
 ## 八、60 分钟时间分配
 
