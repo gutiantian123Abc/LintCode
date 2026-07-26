@@ -1,157 +1,160 @@
-# 295. Find Median from Data Stream
+# 295. Find Median from Data Stream(数据流的中位数)
 
-**Hard** · `Heap` · `Design` · `Two Heaps` · [LeetCode ↗](https://leetcode.com/problems/find-median-from-data-stream/)
+**Hard** · `堆` · `设计` · `双堆` · [LeetCode ↗](https://leetcode.com/problems/find-median-from-data-stream/)
 
-Design a class over a number stream:
+设计一个类,持续接收数字流,随时报告中位数:
 
-| API | Behavior |
+| API | 行为 |
 |---|---|
-| `addNum(num)` | A new number arrives |
-| `findMedian()` | Return the median of everything so far — average of the two middle values when the count is even |
+| `addNum(num)` | 流里进来一个新数 |
+| `findMedian()` | 返回目前所有数的中位数——总数为偶时,取中间两个数的平均 |
 
 ```text
 addNum(1) → addNum(2) → findMedian() = 1.5 → addNum(3) → findMedian() = 2.0
 ```
 
-The finale of the heap line: [LC 703](https://leetcode.com/problems/kth-largest-element-in-a-stream/) watches one *fixed* position (k-th largest) with one heap; the median is a position that **moves with the stream** — one heap can't hold it, two can.
+堆线的收官:[LC 703](https://leetcode.com/problems/kth-largest-element-in-a-stream/) 用一个堆盯"第 k 大"这个**固定位置**;中位数是**会随流移动的位置**——一个堆管不住,要两个。
 
 ---
 
-## Why two heaps — the median needs a boundary, not a total order
+## 核心思路:两个堆,门对门夹住中位数
 
-The median is the middle of the sorted stream, but nobody needs to know the internal order of either half — **only the two elements straddling the boundary**. Full order is waste; the boundary is the requirement. The architecture grows out of that observation:
+中位数 = 排序后正中间的数。但我们从不需要知道左半边内部、右半边内部各自的顺序——**只需要分界线两侧的那两个数**。所以把所有数劈成两半:
 
-| Heap | Holds | Type | Its top is… |
+| 堆 | 装什么 | 类型 | 门口(堆顶)站着谁 |
 |---|---|---|---|
-| `maxHeap` | the **smaller** half | max-heap | the largest of the smalls — the boundary's **left** neighbor |
-| `minHeap` | the **larger** half | min-heap | the smallest of the larges — the boundary's **right** neighbor |
+| `maxQ` | 较小的一半 | 最大堆 | 小半区里**最大**的 —— 分界线**左**邻 |
+| `minQ` | 较大的一半 | 最小堆 | 大半区里**最小**的 —— 分界线**右**邻 |
 
-**The median permanently lives at the two tops.** Same philosophy as LC 347/703 — *put the element you'll access at the top* — except here **both doors face the middle**, clamping the boundary from either side.
+**中位数永远住在两个门口**:总数偶 → 两门口平均;奇 → 多数派门口(本版约定 **minQ 是多数派**)。
 
-Two invariants carry all correctness:
+两条不变量撑起全部正确性:
 
-1. **Order:** every element in `maxHeap` ≤ every element in `minHeap`.
-2. **Size:** the heaps differ by at most 1, and — *this version's convention* — **`minHeap` is the majority**: with an odd count, the extra element sits in `minHeap`, so the median is `minHeap`'s top.
+1. **秩序**:maxQ 里每个数 ≤ minQ 里每个数(左半永远不大于右半);
+2. **体量**:两堆大小差 ≤ 1,奇数时多出的那个在 minQ。
 
----
-
-## ⚠️ A landmine in this file — the big comment is a MIRROR of the code
-
-The block comment above `addNum` describes: *route through `maxHeap` → skim its largest into `minHeap` → if `minHeap` oversized, move one back* — with `maxHeap` as the majority. The **code does the exact opposite on every axis**:
-
-| | The comment says | The code does |
-|---|---|---|
-| Newcomer enters | `maxHeap` | **`minHeap`** |
-| Skim across | maxHeap's **largest** → minHeap | **minHeap's smallest → maxHeap** |
-| Rebalance when | `minHeap` oversized | **`maxHeap` oversized** |
-| Majority heap | `maxHeap` | **`minHeap`** |
-
-Both conventions are valid — the comment is simply the *other* variant's manual pasted onto this one. Reading them together is guaranteed confusion (and likely why this solution felt forgotten). The field comment `// A min-heap for the right side (larger half)` *is* correct. **Fix the block comment to match the code** — a live specimen of "a stale comment is worse than no comment."
+秩序保证分界线落在**两堆之间**;体量保证这条线落在**正中间**。缺了任何一条,门口站的就不再是中位数的邻居。
 
 ---
 
-## Solution
+## 代码
 
 ```java
 class MedianFinder {
-    private PriorityQueue<Integer> maxHeap;   // smaller half; top = boundary's left neighbor
-
-    // A min-heap for the right side (larger half) of the numbers
-    private PriorityQueue<Integer> minHeap;   // larger half + majority; top = boundary's right neighbor
+    PriorityQueue<Integer> minQ;
+    PriorityQueue<Integer> maxQ;
 
     public MedianFinder() {
-        maxHeap = new PriorityQueue<>((Integer a, Integer b) -> {
-            return Integer.compare(b, a);     // reversed order = max-heap
+        this.minQ = new PriorityQueue<>();
+        this.maxQ = new PriorityQueue<>((Integer a, Integer b) -> {
+            return Integer.compare(b, a);   // 反序 = 最大堆
         });
-        minHeap = new PriorityQueue<>();
     }
 
     public void addNum(int num) {
-        minHeap.add(num);                     // 1) EVERYONE enters the larger half first
-        maxHeap.add(minHeap.poll());          // 2) skim minHeap's minimum into the smaller half
-        if (maxHeap.size() > minHeap.size()) {
-            minHeap.add(maxHeap.poll());      // 3) smaller half oversized -> its top flows back
+        minQ.add(num);                      // ① 不管大小,全员先进 minQ
+        maxQ.add(this.minQ.poll());         // ② minQ 撇出自己的最小值,划给 maxQ
+        if (maxQ.size() > minQ.size()) {    // ③ maxQ 超员 → 门口的(最大者)搬回去
+            minQ.add(maxQ.poll());
         }
     }
 
     public double findMedian() {
-        if (maxHeap.size() == minHeap.size()) {
-            if (maxHeap.size() == 0) {
-                return 0.0;                   // defensive; LC guarantees non-empty calls
+        if (minQ.size() == maxQ.size()) {   // 数人头,不是认脸(见下)
+            if (minQ.isEmpty()) {
+                return 0.0;                 // 防御:两堆全空
+            } else {
+                return (minQ.peek() + maxQ.peek()) / 2.0;
             }
-            return (maxHeap.peek() + minHeap.peek()) / 2.0;   // even: average the two tops
         }
-        return minHeap.peek() * 1.0;          // odd: the majority heap's top
+
+        return minQ.peek() * 1.0;           // 奇数 → 多数派 minQ 的门口
     }
 }
 ```
 
 ---
 
-## `addNum` — the three-step wash, the heart of the problem
+## addNum:三步洗牌
 
-The rejected instinct: *"compare `num` with the tops, insert into the correct side, then rebalance."* Workable, but it needs empty-heap checks and two-direction rebalancing — branches everywhere. The wash-through does it **with zero comparisons**:
+**为什么全程不用写一个 if 比较**:② 撇出去的是 minQ 此刻的**最小值**,它 ≤ minQ 剩下的所有数,落进 maxQ 后"左 ≤ 右"自动保持。一个很小的数进错了门也不怕——它立刻就是 minQ 的最小值,② 一步就把它撇到 maxQ。**错门只存在一瞬,洗牌自动归位,秩序不变量靠构造成立,不靠分支判断。**
 
-**Why the order invariant holds automatically:**
+---
 
-- Step 2 skims `x` = the **minimum** of `minHeap` → `x` ≤ everything left in `minHeap` ✓; the old `maxHeap` elements were already ≤ old min(`minHeap`) ≤ everything remaining ✓ — so `x` landing in `maxHeap` keeps *left ≤ right* intact.
-- Step 3 flows back `y` = the **maximum** of `maxHeap` → everything remaining in `maxHeap` ≤ `y`, and `y` ≤ all of `minHeap` (invariant just re-established) — intact again.
+## 重点:第 ③ 步为什么必须存在 —— 保持 size 平衡
 
-Invariant by construction, not by branching.
-
-**The wrong-door self-correction — the trick's best moment:** a tiny number (which belongs in the smaller half) enters `minHeap` first — but it is instantly `minHeap`'s minimum, and step 2 skims it straight into `maxHeap`. **The wrong door exists for one instant; the wash re-files it, no comparison ever written.**
-
-**The size ledger** (let `maxHeap` = S, both possible pre-states):
+先算清 ①② 两步的账:
 
 ```text
-pre (S, S):    steps 1-2 → (S+1, S) → step 3 fires → (S, S+1)   minHeap +1  ✓
-pre (S, S+1):  steps 1-2 → (S+1, S+1) → step 3 idle → equal      ✓
+① minQ.add(num)          →  minQ 多 1
+② maxQ.add(minQ.poll())  →  minQ 少 1,maxQ 多 1
+──────────────────────────────────────────────
+净效果:minQ 不变(只是过了一道手),maxQ 每次净多 1
 ```
 
-Sizes oscillate between *equal* and *minHeap-plus-one*, never diverging — which is exactly what lets `findMedian` read the answer off `size()` alone.
+**①② 是一条只进不出的传送带**:新数借 minQ"洗个澡"(完成排序归位),存款却永远落进 maxQ。如果删掉 ③,走一遍 `[5, 15, 1]`:
+
+| add | ①② 之后 | maxQ / minQ |
+|---|---|---|
+| 5 | 5 经 minQ 存入 maxQ | {5} / **空** |
+| 15 | 同上 | {5,15} / **空** |
+| 1 | 同上 | {1,5,15} / **空** |
+
+**所有数淤积在 maxQ,minQ 永远是空的。** 此时 findMedian 见 size 不等,去取 `minQ.peek()` → 空堆 peek 返回 null → 拆箱直接 **NullPointerException**。就算不炸,maxQ 的堆顶也只是"全局最大值",和中位数毫无关系。
+
+**③ 就是传送带的回流管**:①② 每次固定给 maxQ 存 1,③ 检查这笔存款有没有让 maxQ 超过 minQ——超了,就把 maxQ 门口的数(它的最大值,恰好是最应该过界的那个)搬回去。**一存一还,系统才转得起来。**
+
+为什么条件恰好是 `>`、恰好搬一个就够:每次 add 之前的状态都是合法的(等量,或 minQ 多一),①② 只给 maxQ 加了 1,所以事后**唯一可能的违规**就是 maxQ 恰好多出一个——搬一个,精确归位:
+
+```text
+前态 (S, S)    → ①② → (S+1, S)    → ③ 触发 → (S, S+1)   minQ 多一 ✓
+前态 (S, S+1)  → ①② → (S+1, S+1)  → ③ 不动 → 等量        ✓
+```
+
+体量就在"等量 ↔ minQ 多一"之间像**钟摆**一样来回摆,③ 是回摆的那一下。**这个钟摆,正是 findMedian 敢直接按 size 读答案的底气。**
 
 ---
 
-## `findMedian` — read the doors by the ledger
+## findMedian:按"人数"读门口,不是按"脸"
 
-- **Equal sizes** → average the two tops. `/ 2.0` forces real division — `/ 2` would silently truncate.
-- **Unequal** → the majority heap `minHeap`'s top.
-- `size() == 0 → 0.0` is defensive (LC guarantees non-empty); `* 1.0` is optional (int auto-widens to double on return) — kept for explicitness.
-- Footnote: `peek() + peek()` adds two ints — safe under this problem's ±10⁵ bounds; for general use, `a/2.0 + b/2.0` dodges overflow.
+- **size 相等**(总数为偶)→ 两门口平均;`/2.0` 保证实数除法,写 `/2` 会悄悄丢小数;
+- **size 不等**(总数为奇)→ 多数派 minQ 的门口。
+
+**踩过的坑,立此存照**:曾把条件写成 `minQ.peek() == maxQ.peek()`。判"平均还是单边"的依据是**总数奇偶(数人头)**,和两个门口的值像不像(认脸)毫无关系——`[1, 2]` 就翻车:peek 是 2 和 1,不等 → 走单边返回 2,正确答案 1.5。而且 `Integer == Integer` 比的是**引用**不是值(LC 323 的旧账重现)。**一句话:size 管调度,peek 只是门口那张脸。**
 
 ---
 
-## Walkthrough — `[5, 15, 1]`
+## 手走 `[5, 15, 1]`
 
-| add | ① enters minHeap | ② skim min → maxHeap | ③ flow back? | Final max / min | Median |
+| add | ① 进 minQ | ② 撇最小给 maxQ | ③ 回流? | 终态 maxQ / minQ | 中位数 |
 |---|---|---|---|---|---|
-| 5 | {5} | 5 → max{5}, min{} | (1>0) 5 flows back | {} / {5} | **5** ✓ |
-| 15 | {5,15} | 5 → max{5}, min{15} | equal, idle | {5} / {15} | (5+15)/2 = **10.0** ✓ |
-| 1 | {1,15} | **1 → max{5,1}**, min{15} | (2>1) **5 flows back** | {1} / {5,15} | min top = **5** ✓ |
+| 5 | {5} | 5 → max{5}, min 空 | (1>0) 5 回流 | 空 / {5} | **5** ✓ |
+| 15 | {5,15} | 5 → max{5}, min{15} | 等量,不动 | {5} / {15} | (5+15)/2 = **10.0** ✓ |
+| 1 | {1,15} | **1 → max{5,1}**, min{15} | (2>1) **5 回流** | {1} / {5,15} | minQ 门口 = **5** ✓ |
 
-Row 3 is the whole show in one frame: **1 enters the wrong door and is skimmed out instantly** (it belongs in the smaller half), while step 3 carries **5 across the boundary** — the old boundary element switches sides. Sorted check `1, 5, 15` → median 5 ✓.
+第三行一帧看全三步的两种作用:**1 进错门被 ② 秒撇走**(它属于小半区),同时 ③ 把 5 搬过界(旧的分界数换边)。排序验证 `1, 5, 15` → 中位数 5 ✓。
 
 ---
 
-## Complexity — and the key contrast with LC 703
+## 复杂度
 
-| Metric | Cost |
+| 指标 | 成本 |
 |---|---|
-| `addNum` | **O(log n)** — two to three heap ops on heaps of ~n/2 |
-| `findMedian` | **O(1)** — peek the doors |
-| Space | **O(n)** |
+| addNum | **O(log n)** —— 两到三次堆操作,两堆各约 n/2 |
+| findMedian | **O(1)** —— 看两个门口 |
+| 空间 | **O(n)** |
 
-The contrast worth saying out loud: 703 pins memory at O(k) because *evicted = gone forever* (the bar only rises). **Here nothing can ever be discarded** — a future flood of small numbers drags the median into territory you thought was dead. **The median is a moving position; every historical element may return to duty** → O(n) is forced, not lazy. One line: *whether you may discard data depends on whether the position you watch can move.*
-
----
-
-## Famous follow-ups (one sentence each)
-
-1. **All numbers in [0, 100]** → a counting array of 101 buckets; find the median by a prefix scan — no heaps at all.
-2. **99% of numbers in [0, 100]** → buckets for the bulk + **two overflow heaps** for the outliers.
+和 703 对照一句:703 敢把内存钉在 O(k),靠的是"被踢即永别"(门槛只升不降);**这题谁都不能丢**——中位数是会移动的位置,未来一大波小数能把它拖进你以为永远用不上的区域。**能不能丢数据,取决于你盯的位置动不动。**
 
 ---
 
-## Self-test — why `>` must be strict
+## 经典 follow-up(口述一句即可)
 
-Change step 3's condition to `>=` and walk `[1, 2]`: `add(1)` ends (0, 1), fine; `add(2)` reaches (1, 1) after steps 1–2, `>=` fires anyway → (0, 2); `findMedian` sees unequal sizes → returns `minHeap` top = 1. **Correct answer: 1.5 — wrong on the second number.** With `>=`, the equal state also flows back, `minHeap` inflates forever and `maxHeap` starves. **The strict `>` is the gatekeeper of the size oscillation; one equals sign collapses the whole design.**
+1. 所有数都在 [0, 100] → **101 个桶计数**,前缀扫描找中位数,堆都不用;
+2. 99% 的数在 [0, 100] → 桶装主体 + **两个溢出堆**装离群值。
+
+---
+
+## 自测:③ 的 `>` 改成 `>=` 会怎样?
+
+手走 `[1, 2]`:add(2) 时 ①② 到 (1,1),`>=` 也触发 → (0,2);findMedian 见 size 不等 → 返回 minQ 门口 = 1,**正确答案 1.5,第二个数就错**。等量时也回流 → minQ 无限膨胀、maxQ 饿死。**严格 `>` 是钟摆的守门员,一个等号之差全盘崩。**
