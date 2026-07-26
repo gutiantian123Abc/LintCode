@@ -638,7 +638,12 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 
 ### Q1:为什么用 HashSet?(数据结构选型)
 
+面试官的英文问法:"Why did you use a HashSet?" / "Why this data structure?"
+
 30 秒话术:"需求只有两个操作——值级去重和'这个值出现过吗'。HashSet 的 add/contains 是均摊 O(1),正好是它最强的两项。不需要顺序所以不用 TreeSet(每次 O(log n));不需要给值挂附加信息所以不用 HashMap;List.contains 是 O(n),n 条事件总成本 O(n²),不可接受。"
+
+**English 回答脚本(照着说):**
+> "I only need two operations here: deduplication, and membership checks — 'have I seen this value before?' A HashSet gives me amortized O(1) add and contains, which is exactly what it's optimized for. I don't need ordering, so a TreeSet would just cost an extra log factor; I don't need to attach data to each value, so a HashMap is overkill; and a List would make contains O(n), which turns the whole stream into O(n squared). So a HashSet is the precise fit."
 
 被追问时的弹药:
 
@@ -648,9 +653,19 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - **hashCode/equals 契约:** equals 相等 ⇒ hashCode 必须相等;可变对象入 set 后再改字段,就再也 contains 不到它(经典事故)。String 不可变,天然安全。
 - **小优化:** 预知规模时 `new HashSet<>((int)(expected / 0.75f) + 1)` 一次到位,避免反复 rehash。
 
+**被追问时的英文短句:**
+> 均摊:"Resizing costs O(n), but capacity doubles each time, so the total copying work across n inserts is a geometric series under 2n — constant per insert, amortized."
+> 最坏情况:"Under heavy collisions a bucket treeifies into a red-black tree since Java 8, so lookups degrade to O(log n) rather than O(n)."
+> 字符串:"Strictly speaking, hashing a string is O(L) in its length, but String caches its hash code and these PII values are short."
+
 ### Q2:上 production 前你会改什么?(零基础详解版)
 
+面试官的英文问法:"What changes would you make before deploying this to production?" / "What would it take to productionize this?"
+
 **先建立总图景。**面试里你写的是:一个进程、内存里一个 HashSet,测试数据跑完程序就退出。生产上,这段代码会变成一个 7×24 小时运行的服务:部署在多台服务器上、每秒吃进成千上万条事件、会崩溃重启、会半夜发版、会遇到恶意数据、要接受审计。"上 production 前改什么"问的就是这段距离里的每一个坑。以下 8 条,每条按"哪里不行 → 需要的背景概念 → 怎么改"展开。面试不用全背:挑 PII、状态外置、误报治理(或并发)三条讲透,其余知道名词和一句话答法即可。
+
+**英文开场白(先说这句再展开):**
+> "It works as a coding exercise, but I'd change quite a few things before shipping it. The biggest ones are how we store the PII, where the state lives, and how we handle false positives — let me walk through them."
 
 ---
 
@@ -665,7 +680,9 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - **KMS(Key Management Service)**:云厂商提供的"密钥保险柜"。密钥不写进代码或配置文件(那样代码泄漏 = 密钥泄漏),程序运行时向 KMS 申请使用。
 
 怎么改:黑名单里存 HMAC-SHA256(值);日志只打事件 id 和掩码(`***-**-8929`);密钥放 KMS。
-面试一句话:"I'd store keyed hashes (HMAC) instead of raw PII — equality matching still works, but a leaked snapshot is useless without the key."
+
+**English 回答脚本**(可能的问法:"How would you handle the PII in this service?"):
+> "Right now I'm holding raw SSNs and phone numbers in memory, which isn't acceptable in production — a heap dump or one careless log line would leak them. I'd store keyed hashes instead: HMAC-SHA256, with the key held in a KMS. Hashing is deterministic, so equality matching works exactly the same, but the values can't be recovered. And it has to be a keyed hash rather than plain SHA-256, because phone numbers and SSNs are low-entropy — with a plain hash an attacker could precompute every possible value. Logs would only ever show event IDs and masked values."
 
 **2. 状态外置(黑名单不能只活在一个进程的内存里)**
 
@@ -679,6 +696,9 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 
 怎么改 + 权衡:黑名单放 Redis(或 DB 表)。代价:查内存是纳秒级,过一次网络是毫秒级,慢约三个数量级——但题干说 "produce a decision in seconds",毫秒级绰绰有余。**把这句权衡说出来,比方案本身更加分。**
 
+**English 回答脚本**(可能的问法:"What happens when you run multiple instances, or the process restarts?"):
+> "The blacklist lives in one process's memory, which fails in two ways: we lose it on every restart, and once we scale horizontally each instance only sees its own slice of the traffic, so the blacklists diverge and we miss fraud. I'd move the set into a shared store like Redis — SADD and SISMEMBER are both O(1) — or rebuild it from a Kafka compacted topic on startup. The trade-off is one network hop per check, which is milliseconds; since the requirement is a decision within seconds, that's well within budget."
+
 **3. 输入校验 + 死信队列(一条坏数据不能瘫痪整条流水线)**
 
 哪里不行(一个具体故事):上游团队发版带了 bug,发出一条 customer_details 是数字而不是对象的事件。你的代码解析时抛异常。消息队列的默认行为是"处理失败就重试"——于是你的服务反复读这条坏消息、反复崩,后面排队的几万条好消息全被堵死。这种消息有个名字:**毒丸(poison pill)**。
@@ -688,6 +708,9 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - **DLQ(Dead Letter Queue,死信队列)**:专门的"问题件货架"。处理失败的消息不无限重试,而是挪进 DLQ 存证,主流水继续跑;工程师之后来翻问题件、修上游。
 
 怎么改:schema 校验 + 单条 try/catch + 失败进 DLQ + "DLQ 进件突然变多"报警(那意味着上游坏了)。
+
+**English 回答脚本**(可能的问法:"What if an event is malformed?"):
+> "I'd make sure one bad event can never take down the consumer. Today a malformed payload would throw, and with retries it becomes a poison pill blocking everything behind it. So: schema validation up front, a try-catch around each event, and failures go to a dead-letter queue with an alert on the DLQ rate — the stream keeps flowing and we debug the bad data on the side."
 
 **4. 并发与原子性(HashSet 不是线程安全的,而且"先查后加"有竞态)**
 
@@ -705,12 +728,18 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 
 **本题的最高分观察**:分区这条常规路在这题走不通——一条事件有 4 个不同的 PII 值,按 phone 分区,ssn 相同的两条事件会落进不同分区、互相看不见;传染跨字段,黑名单天生全局。所以只能单写者,或共享存储上做原子"查+加"。
 
+**English 回答脚本**(可能的问法:"Is this thread-safe?"):
+> "HashSet isn't thread-safe, so at minimum I'd switch to ConcurrentHashMap.newKeySet(). But the subtler issue is that check-then-add is two separate steps: a fraud_flag could be mid-write while an underwriting event for the same person is being checked on another thread, and we'd miss it. So the check-and-add needs to be atomic — for example a Redis Lua script, since Redis executes commands on a single thread. The interesting wrinkle is that the usual fix, partitioning by key, doesn't work here: an event carries four different PII values and contagion crosses fields, so the blacklist is inherently global. That pushes you toward a single writer, or atomic operations on a shared store."
+
 **5. 可观测性(让服务"能被看见")**
 
 背景概念:**可观测性**三件套——metrics(持续上报的数字,画成仪表盘:每秒处理多少条、耗时多少、错多少)、日志(逐条事件的文字记录)、告警(数字越线自动叫人)。没有这三样,服务坏了你只能等客户投诉才知道。
 - **p99**:把一段时间内所有请求的耗时从小到大排,取第 99% 位置的值。"p99 = 80ms" = 99% 的请求快于 80ms。不用平均值的原因:1% 的超慢请求会被 99% 的快请求平均掉,而用户记住的恰恰是慢的那次。
 
 本服务的仪表盘:各类型事件 QPS(每秒条数)、"1" 命中率、黑名单大小、处理延迟 p99、DLQ 进件数。最值钱的一条告警:**命中率突变**——突然飙高只有两种解释:真有攻击,或上游数据坏了(比如某字段全变成同一个默认值,引发疯狂传染),哪种都得叫人来看。
+
+**English 回答脚本**(可能的问法:"How would you monitor this in production?"):
+> "I'd add metrics first: events per second by type, the flag rate, the size of the suspicious set, p99 processing latency, and the dead-letter rate, with alerts on anomalies. The flag rate is the one I'd watch most closely — a sudden spike either means a real attack or broken upstream data, and both need a human immediately."
 
 **6. 误报治理(风控产品思维,Affirm 最爱听)**
 
@@ -724,6 +753,9 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - **传染深度上限**:传染只许走一层,不许链式滚雪球。
 - **人工复核队列**:分数在边界的交易不直接拒,转人工。
 
+**English 回答脚本**(可能的问法:"Do you see any problem with the matching rule itself?"):
+> "The any-match rule will over-flag in the real world. Apartment buildings share an address, families share a phone number — one fraud_flag on a shared address would flag every honest neighbor, and the contagion rule then snowballs it. I'd move to weighted scoring — an SSN match is worth far more than an address match — with a threshold, auto-whitelist values that appear across many distinct users, cap the contagion depth, and send borderline scores to a manual review queue instead of auto-declining."
+
 **7. 幂等与顺序(同一条消息可能送来两次)**
 
 背景概念:
@@ -733,6 +765,9 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 对到本题:好消息——`set.add` 天然幂等,同一条 fraud_flag 消费两次,黑名单一模一样(**主动说出这个好性质**)。坏消息——副作用不幂等:判 "1" 时若还要写决策记录、发通知,重复消费 = 写两条、发两次。修法:每个事件带全局唯一 id,执行副作用前先查"这个 id 干过没有"(去重表)。
 顺序:本题输出依赖处理顺序(fraud_flag 在前在后结果完全不同),重放和多分区消费必须保序。
 
+**English 回答脚本**(可能的问法:"What if the same event is delivered twice?"):
+> "Message systems are typically at-least-once, so duplicates will happen. The nice property here is that set-add is naturally idempotent — reprocessing a fraud_flag leaves the state unchanged, so the core logic is safe for free. Side effects aren't, though: if flagging writes a decision record or sends a notification, I'd dedupe those by event ID. And since the output depends on event order, replays and partitioned consumption have to preserve ordering."
+
 **8. 增长控制(只进不出的黑名单会吃光内存)**
 
 哪里不行:黑名单只加不删,服务跑三年涨到几十亿条,内存装不下、Redis 账单爆炸。
@@ -741,7 +776,12 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 
 但先别急着设 TTL——这里有个比技术更重要的问题:**欺诈信号会过期吗?**五年前被盗用过的电话,今天还该拉黑吗?号码可能早换了主人。这是业务决策,要和风控团队一起定;面试里点出"这不是纯技术决定"非常加分。工程配套:冷热分层——最近命中过的值留内存(热),长期没动静的沉到便宜的 DB(冷),查询先热后冷。
 
+**English 回答脚本**(可能的问法:"The set grows forever — is that a problem?"):
+> "Yes — the suspicious set only ever grows, so I'd put a lifecycle on it: TTLs in Redis, hot values in memory, cold ones tiered out to a database. Whether fraud signals should expire at all is really a business question for the risk team rather than a pure engineering call — a phone number flagged five years ago may belong to someone else today."
+
 ### Q3:数据量大到单机放不下怎么办?
+
+面试官的英文问法:"What if the dataset no longer fits on a single machine?" / "How does this scale?"
 
 问题设定:值多到一台机器(甚至一台 Redis)都放不下,比如百亿级。
 
@@ -752,7 +792,12 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - 为什么省:不存值本身只存 bit。10 亿个值、1% 误报率 ≈ 1.2 GB,单机内存轻松放。
 - 局限一句话:标准 Bloom filter 不支持删除(多个值共享 bit,删除会误伤别人);要删除就换 counting Bloom filter / cuckoo filter。
 
+**English 回答脚本:**
+> "Two layers. For capacity, Redis Cluster shards the set across nodes by hashing the value, so each lookup is still O(1). For latency, I'd keep a Bloom filter in each instance's local memory as a first-pass check. A Bloom filter never gives false negatives — when it says 'not present', we skip the network call entirely, which covers the vast majority of clean transactions. It does give occasional false positives, so on a hit we confirm against Redis. And it's tiny: a billion values at a one-percent false-positive rate is only about 1.2 gigabytes. If we needed deletions I'd use a cuckoo filter instead."
+
 ### Q4(高频追问):人工发现标错了,要撤销(un-flag)怎么办?
+
+面试官的英文问法:"An operator flagged a customer by mistake — how would you undo that?"
 
 场景:运营发现某条 fraud_flag 标错了,客户是好人,要求撤销。
 
@@ -762,7 +807,8 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 - **(a) 记账(provenance)**:每个值入黑时记下"因哪个事件而黑",形成依赖关系,撤销时沿依赖回收。听着直观,实现上是引用计数 + 依赖图,边界情况多、容易错。
 - **(b) 事件溯源(event sourcing)**——从零解释:换一种世界观,**不把"当前状态"当真相,把"发生过的事件流水"当真相**;状态永远是"把流水从头算一遍"的结果。类比银行:银行不直接改你的余额,只追加交易流水,余额是流水加总出来的;冲正一笔错账 = 追加一条反向记录、重新加总。我们的 FraudDetector 恰好就是"输入事件流 → 输出状态"的确定性函数,所以撤销可以做成:**把那条 fraud_flag 标记作废,然后重放整个事件流,重建一份从未受它影响的黑名单**,替换旧的。绝对正确,不会漏删错删。代价:全量重放慢 → 定期存快照(snapshot),从最近快照开始放。
 
-面试推荐答 (b),一句话:"State is just a deterministic function of the event stream — void the bad flag and replay."
+**English 回答脚本(推荐答 b):**
+> "Removing the flag's own values is trivial — the hard part is the contagion. Values that turned suspicious because of that flag went on to taint others, and after the fact you can't tell them apart from legitimately suspicious values. You could track provenance — record which event caused each value to be blacklisted — but that becomes a reference-counted dependency graph and it's easy to get wrong. The cleaner answer is event sourcing: the state is just a deterministic function of the event stream, so I'd void the bad fraud_flag and replay the stream to rebuild the state without its influence — guaranteed correct. To keep replay fast, snapshot periodically and replay from the last snapshot."
 
 ## 七、变体详解(#25 店面的第二、三问)
 
