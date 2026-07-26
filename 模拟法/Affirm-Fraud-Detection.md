@@ -731,6 +731,140 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 **English 回答脚本**(可能的问法:"Is this thread-safe?"):
 > "HashSet isn't thread-safe, so at minimum I'd switch to ConcurrentHashMap.newKeySet(). But the subtler issue is that check-then-add is two separate steps: a fraud_flag could be mid-write while an underwriting event for the same person is being checked on another thread, and we'd miss it. So the check-and-add needs to be atomic — for example a Redis Lua script, since Redis executes commands on a single thread. The interesting wrinkle is that the usual fix, partitioning by key, doesn't work here: an event carries four different PII values and contagion crosses fields, so the blacklist is inherently global. That pushes you toward a single writer, or atomic operations on a shared store."
 
+---
+
+#### 并发这条的实证演示 + 逐行讲解(ConcurrencyDemo.java,代码已实际编译运行)
+
+**三个 Demo 的真实运行结果:**
+
+```text
+Demo1(裸 HashSet,两个线程同时各加 20 万个不同元素):
+  trial 1: 期望 400000,实际 393794   <- 6206 个元素无声消失
+  trial 2: 期望 400000,实际 400000   (侥幸没触发 —— 并发 bug 时隐时现,这正是它难查的原因)
+  trial 3: 期望 400000,实际 396492   <- 3508 个元素无声消失
+
+Demo2(线程安全的 Set,但"查"和"写"没绑在一起):underwriting 判定 = "0"   <- 欺诈漏判
+Demo3(同一把锁把"整体写入"和"查询"焊死):        underwriting 判定 = "1"   <- 抓住了
+```
+
+**Demo 1:裸 HashSet 在并发写入下丢元素**
+
+```java
+static void demo1() throws Exception {
+    for (int trial = 1; trial <= 3; trial++) {
+        Set<Integer> set = new HashSet<>();                  // 普通 HashSet,无任何保护
+        int perThread = 200_000;
+
+        // 两个线程,各自添加互不重叠的 20 万个数(0~199999 和 200000~399999)
+        Thread t1 = new Thread(() -> { for (int i = 0; i < perThread; i++) set.add(i); });
+        Thread t2 = new Thread(() -> { for (int i = perThread; i < 2 * perThread; i++) set.add(i); });
+
+        t1.start(); t2.start();           // 同时开跑
+        t1.join(10_000); t2.join(10_000); // 等两个线程都干完
+
+        System.out.println("expected 400000, actual " + set.size());
+    }
+}
+```
+
+讲解:两个线程加的数**完全不重叠**,理论上最后必然是 40 万个,实测丢了几千个。因为 `add` 内部是"定位桶 → 读链表 → 写回"好几步,两个线程同时写同一个桶(或同时触发扩容)时,后写的把先写的覆盖掉了——像两个厨师同时拿出冰箱同一个盒子各加一样菜再放回,后放回的盒子里没有对方加的菜。注意 trial 2 一个没丢:**并发 bug 看运气,测试环境跑一百遍都可能是好的**。修法一行:`ConcurrentHashMap.newKeySet()`。
+
+**Demo 2 / 3 共用的场景设定:**
+
+```java
+// 线程 A 正在处理:fraud_flag  {phone-111, ssn-999, email-x, addr-123}
+// 线程 B 正在处理:underwriting{phone-222, ssn-999}   -> 两者只共享 ssn
+static final List<String> FRAUD_VALUES        = List.of("phone-111", "ssn-999", "email-x", "addr-123");
+static final List<String> UNDERWRITING_VALUES = List.of("phone-222", "ssn-999");
+// 正确结果:fraud_flag 把 4 个值拉黑后,underwriting 因 ssn-999 命中而判 "1"
+```
+
+**Demo 2:容器已经线程安全,但"查"和"写"没绑在一起 → 照样漏判**
+
+```java
+static void demo2() throws Exception {
+    Set<String> blacklist = ConcurrentHashMap.newKeySet();   // 注意!这已经是线程安全的 Set
+    CountDownLatch aWrotePhoneOnly = new CountDownLatch(1);
+    CountDownLatch bFinishedCheck  = new CountDownLatch(1);
+    StringBuilder decision = new StringBuilder();
+
+    Thread a = new Thread(() -> {
+        blacklist.add(FRAUD_VALUES.get(0));      // A 只写完了 phone……
+        aWrotePhoneOnly.countDown();             // ……此刻正处于"写到一半"
+        try { bFinishedCheck.await(); } catch (InterruptedException ignored) {}
+        for (int i = 1; i < FRAUD_VALUES.size(); i++)
+            blacklist.add(FRAUD_VALUES.get(i));  // 这才写 ssn/email/addr —— 太晚了
+    });
+
+    Thread b = new Thread(() -> {
+        try { aWrotePhoneOnly.await(); } catch (InterruptedException ignored) {}
+        boolean hit = UNDERWRITING_VALUES.stream().anyMatch(blacklist::contains); // 就在此刻查
+        decision.append(hit ? "1" : "0");
+        bFinishedCheck.countDown();
+    });
+
+    a.start(); b.start(); a.join(); b.join();
+    System.out.println("decision = " + decision);   // 输出 "0":漏判
+}
+```
+
+讲解:先认识 **CountDownLatch(倒计时门闩)**——把它想成一扇闸门,`await()` 是"站在闸门前等",`countDown()` 是"开闸"。生产环境里这种倒霉时序是负载一高**随机**发生的;demo 用两道闸门把那个倒霉瞬间**冻结**下来让它 100% 复现:强迫 B 恰好在"A 写完 phone、还没写 ssn"的瞬间去查。B 的每一次 `contains` 单独看都是正确的(那一刻黑名单里确实没有 ssn-999),但业务结果是 `"0"`、欺诈放行。**结论:线程安全的容器只保证"单次操作"正确,救不了"两步之间被插队"。**这就像夫妻同时在两台 ATM 查余额都看到 1000、都决定取 800——每次查询和扣款单独都对,连起来账户被取走 1600。
+
+**Demo 3:把"整体写入"和"查询"用同一把锁焊死 → 修复(逐行讲解)**
+
+```java
+static void demo3() throws Exception {
+    Set<String> blacklist = new HashSet<>();      // ① 故意用回普通 HashSet
+    Object lock = new Object();                   // ② 一把锁(任何对象都能当锁用)
+    CountDownLatch aInsideLock = new CountDownLatch(1);
+    StringBuilder decision = new StringBuilder();
+
+    Thread a = new Thread(() -> {
+        synchronized (lock) {                     // ③ A 在写第一个值之前就锁门
+            blacklist.add(FRAUD_VALUES.get(0));   //    写入 phone
+            aInsideLock.countDown();              // ④ 叫醒 B(但 B 会被锁挡住)
+            sleep(200);                           // ⑤ 故意磨蹭 200ms,模拟"写到一半"
+            for (int i = 1; i < FRAUD_VALUES.size(); i++)
+                blacklist.add(FRAUD_VALUES.get(i)); //  写完剩下的 ssn/email/addr
+        }                                         // ⑥ 走出大括号,锁自动释放
+    });
+
+    Thread b = new Thread(() -> {
+        try { aInsideLock.await(); } catch (InterruptedException ignored) {}
+        synchronized (lock) {                     // ⑦ B 想进,但锁在 A 手里 -> 原地阻塞等待
+            boolean hit = UNDERWRITING_VALUES.stream().anyMatch(blacklist::contains);
+            decision.append(hit ? "1" : "0");     // ⑧ 等到锁时,黑名单必然是完整的
+        }
+    });
+
+    a.start(); b.start(); a.join(); b.join();
+    System.out.println("decision = " + decision);   // 输出 "1":抓住
+}
+```
+
+逐行讲解:
+
+- **② 锁是什么。**Java 里任何对象都可以当"门锁"。`synchronized (lock) { ... }` 的含义:进入大括号前必须拿到 `lock` 上的锁;**同一时刻全世界只有一个线程能持有它**;别的线程走到自己的 `synchronized (lock)` 时发现锁被占,就在门口**原地睡觉**,直到持有者走出大括号(⑥)自动交还。
+- **③ 锁的位置是全部精髓。**A 在**写第一个值之前**上锁、**写完全部 4 个值之后**才放锁——"写 4 个值"从外界看变成了**不可分割的一整块**:外人要么看到"一个都没写",要么看到"4 个全写完",永远看不到写了一半的中间状态。这就是原子性的字面实现。
+- **⑦ 双方必须用同一把锁(初学者最容易漏的点)。**锁的本质是"君子协定",只拦得住同样来拿这把锁的人。如果 B 不上锁直接查,照样能读到写了一半的黑名单,Demo 2 惨案原样重演。规则:**所有会碰这份数据的代码路径,全部走同一把锁。**
+
+执行时间线(对照代码序号):
+
+```text
+线程 A:  ③拿到锁 → 写phone → ④开闸叫醒B → ⑤磨蹭200ms → 写ssn/email/addr → ⑥交还锁
+线程 B:  ……等闸门…… → 醒了 → ⑦到门口,锁在A手里 → 睡觉等待 ────────→ 拿到锁 → ⑧查:ssn命中 → "1" ✓
+```
+
+三个值得咀嚼的细节:
+
+1. **⑤ 的 sleep 纯粹是为了证明** B 真的在门口等了 200ms,删掉它结论不变。
+2. **① 故意用回普通 HashSet 也安全**——所有读写都被同一把锁保护,同一时刻只有一个线程碰它。说明"锁"一个方案同时解决了第一层(容器安全)和第二层(原子性)两个问题。
+3. **对回生产:**`synchronized` 只能锁住**同一个 JVM 里**的线程;黑名单挪到 Redis、多台机器共享后,这把锁够不着了——**Redis Lua 脚本就是"分布式世界里的同一把锁"**:Redis 单线程执行,整个脚本一口气跑完,效果和 Demo 3 的大括号一模一样。
+
+面试手写时,Demo 3 的结构就是标准答案骨架:`synchronized` 包住 fraud_flag 的整段写入、包住 underwriting 的"查+传染写入",共用一把锁。可以再补一句英文:"On a single box I'd use one lock around the whole check-and-taint; across instances, the same idea becomes a Redis Lua script — Redis's single-threaded execution gives me the atomicity for free."
+
+---
+
 **5. 可观测性(让服务"能被看见")**
 
 背景概念:**可观测性**三件套——metrics(持续上报的数字,画成仪表盘:每秒处理多少条、耗时多少、错多少)、日志(逐条事件的文字记录)、告警(数字越线自动叫人)。没有这三样,服务坏了你只能等客户投诉才知道。
