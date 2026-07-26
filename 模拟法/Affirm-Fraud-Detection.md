@@ -211,23 +211,129 @@ class DistinctPIIValuesCounter:
 | fraud_flag | customer_details | 必填 | dict | — |
 | fraud_flag | phone/email/address/ssn | 均可选 | string | 是 |
 
-### Part 2 — Implement: FraudDetector
+### Part 2 — Implement: FraudDetector(HackerRank 页面原样)
 
-> We'd like to implement the **FraudDetector** which will be the backbone to our system. We'll be using an event stream, and operate on two different types of events:
->
-> - **"underwriting"** events represent a live transaction that's being underwritten, and so the `handle_event` method needs to **return "1" if we believe fraud is suspected, or "0"** if we don't detect any fraud.
-> - **"fraud_flag"** events represent an instance where a manual operator has identified a past transaction as being fraudulent. The `handle_event` method should **return an empty string** when it handles a fraud_flag event.
->
-> The FraudDetector service will be responsible for identifying subsequent "underwriting" transactions that may be fraudulent, and returning "1" for these suspicious transactions. **If an underwriting event includes any customer PII that has been found in at least one suspicious event then we would consider this to also be suspicious.**
+**Description**
 
-**Test Case 0 期望输出(4 个事件依次):`0` → `` (空) → `1` → `1`**
+We'd like to implement the **FraudDetector** which will be the backbone to our system.
 
-官方 explanation(第 3 条是全题最大的坑,原文照录):
+We'll be using an event stream, and operate on two different types of events: "underwriting" events, and "fraud_flag" events, following the schema below *(schema 与 Part 1 完全相同,即上面那两张 underwriting / fraud_flag 表)*:
 
-1. The first underwriting event passes and returns 0, because we don't have any details that we consider suspicious.
-2. The second event (fraud_flag) marks these values as suspicious: "123 Main St", "182-920-4124", "johndoe@gmail.com", "4568698929".
-3. The third event has address and ssn values that are flagged as suspicious, so we return "1". **The details of these event are also recorded and marked as suspicious for future underwriting events.** ← 传染规则
-4. The fourth event has a phone number that is suspicious — **we flagged it in event 3**(不是 event 2!)。
+- **"underwriting"** events represent a live transaction that's being underwritten, and so the `handleEvent` method needs to **return "1"** if we believe fraud is suspected, **or "0"** if we don't detect any fraud.
+- **"fraud_flag"** events represent an instance where a manual operator has identified a past transaction as being fraudulent. The `handleEvent` method should **return an empty string** when it handles a fraud_flag event.
+
+The FraudDetector service will be responsible for identifying subsequent "underwriting" transactions that may be fraudulent, and returning "1" for these suspicious transactions. **If an underwriting event includes any customer PII that has been found in at least one suspicious event then we would consider this to also be suspicious.**
+
+**Example / Test Case 0**
+
+```json
+[
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "182-920-4124",
+            "email": "johndoe@gmail.com",
+            "ssn": "4568698929"
+        },
+        "loan_amount": 3000
+    },
+    {
+        "event_type": "fraud_flag",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "182-920-4124",
+            "email": "johndoe@gmail.com",
+            "ssn": "4568698929"
+        }
+    },
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "947-213-9402",
+            "email": "janedoe@yahoo.com",
+            "ssn": "4568698929"
+        },
+        "loan_amount": 3000
+    },
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "654 5th Ave",
+            "phone": "947-213-9402",
+            "email": "jamesdoe@hotmail.com",
+            "ssn": "938103583"
+        },
+        "loan_amount": 9000
+    }
+]
+```
+
+Expected results:
+
+```text
+0   # no fraud detected
+    # not an underwriting event, return blank line
+1   # suspicious underwriting event!
+1   # suspicious underwriting event!
+```
+
+判题方式:harness 对每个事件调用一次 `handleEvent`,把返回的字符串**原样打印成一行**。fraud_flag 返回 `""`,所以第 2 行是空行。`#` 后面是题面给的注释,实际比对的只有 `0` / 空行 / `1` / `1` 这四行。注意 Part 2 的 Test Case 0 比 Part 1 **多了第 4 个事件**(654 5th Ave 那条),它就是专门验证传染规则的。
+
+**Explanation(原文照录,第 3 条是全题最大的坑):**
+
+1. The first underwriting event passes and returns False, because we don't have any details that we consider suspicious *(原文笔误:实际返回的是字符串 "0")*
+2. The second event marks the following values as being suspicious, and the service records these values for future reference: "123 Main St", "182-920-4124", "johndoe@gmail.com", "4568698929"
+3. The third event has address and ssn values that are flagged as suspicious, and so we return "1". **The details of these event are also recorded and marked as suspicious for future underwriting events** ← 传染规则
+4. The fourth event has a phone number that is suspicious (**we flagged it in event 3**,不是 event 2!)
+
+**Starter code(Java 版 —— 你选 Java 拿到的样子,Event 类与 Part 1 相同):**
+
+```java
+import java.util.*;
+
+class Event {
+    String eventType;
+    Integer loanAmount;                  // may be null
+    Map<String, String> customerDetails; // may be null
+
+    Event(String eventType, Integer loanAmount, Map<String, String> customerDetails) {
+        this.eventType = eventType;
+        this.loanAmount = loanAmount;
+        this.customerDetails = customerDetails;
+    }
+}
+
+class FraudDetector {
+
+    public FraudDetector() {
+    }
+
+    public String handleEvent(Event event) {
+        return "";
+    }
+}
+```
+
+同样有一段 "do not modify" 的 harness:读 stdin JSON → 构造 Event → 依次调用 `handleEvent` → 每次的返回值打印一行。你只填 `FraudDetector`。
+
+**面经收录的 Python 原版 starter(出处对照用;注意原版方法名就叫 handleEvent,不是 handle_event):**
+
+```python
+@dataclass
+class Event:
+    event_type: str
+    loan_amount: Optional[int]
+    customer_details: Optional[Dict[str, str]]
+
+class FraudDetector:
+    def __init__(self):
+        return
+
+    def handleEvent(self, event: Event) -> str:
+        return ""
+```
 
 ---
 
@@ -407,6 +513,35 @@ public class FraudDetection {
 3. "PII 匹配是全局值匹配(phone 的值撞上别人的 ssn 也算命中)还是按字段匹配?" —— 按期望输出,全局字符串匹配即可;可以补一句"按字段区分(如 key 存成 `phone:xxx`)能避免跨字段误碰撞,作为改进方向"。
 4. "未知 event_type 怎么处理?" —— 建议防御式返回 `""` 并可记日志。
 
+**规则的人话版(先建立直觉再写码):**
+
+整个服务就是维护一个 **"PII 黑名单"集合**(`suspiciousPiiValues`),里面装的是"出过事"的具体值(某个地址、某个电话、某个 SSN……):
+
+- **fraud_flag(人工实锤的欺诈)**:不用判定,把它带的所有 PII 值直接拉黑,返回 `""`。
+- **underwriting(待审批的新交易)**:拿自己的 PII 挨个查黑名单 —— 一个都查不到 → 干净,返回 `"0"`,**什么都不记**;查到任何一个 → 可疑,返回 `"1"`,**并把自己带的全部 PII 也拉黑(传染)**。
+- **为什么要传染**:欺诈者惯用"老 SSN 配新电话、新邮箱"换壳作案。事件 3 用了被实锤的 address+ssn,那它带来的新 phone/email 八成也是欺诈者的马甲 —— 一并拉黑,才能在事件 4 换壳出现时抓住它。
+
+**Test Case 0 逐事件 trace(黑名单集合的变化)。先给值起代号:**
+
+| 代号 | 值 |
+|---|---|
+| A1 / P1 / E1 / S1 | 123 Main St / 182-920-4124 / johndoe@gmail.com / 4568698929 |
+| P2 / E2 | 947-213-9402 / janedoe@yahoo.com |
+| A2 / E3 / S2 | 654 5th Ave / jamesdoe@hotmail.com / 938103583 |
+
+| 事件 | 类型 | 携带 PII | 处理前黑名单 | 判定过程 | 返回 | 处理后黑名单 |
+|---|---|---|---|---|---|---|
+| 1 | underwriting | A1 P1 E1 S1 | ∅ | 4 个值都不在黑名单 → 干净 | `"0"` | ∅(**干净交易不记录!**) |
+| 2 | fraud_flag | A1 P1 E1 S1 | ∅ | 不判定,直接拉黑 | `""`(空行) | {A1, P1, E1, S1} |
+| 3 | underwriting | A1 **P2 E2** S1 | {A1, P1, E1, S1} | A1、S1 命中 → 可疑 | `"1"` | + **P2, E2**(传染!) |
+| 4 | underwriting | A2 **P2** E3 S2 | {A1, P1, E1, S1, P2, E2} | **P2 命中**(事件 3 传染进来的) | `"1"` | + A2, E3, S2 |
+
+三个关键观察:
+
+- **事件 4 与 fraud_flag 拉黑的 {A1, P1, E1, S1} 零交集**,它唯一的联系是 P2 —— 而 P2 是从事件 3(被判可疑的 underwriting)传染进黑名单的。所以漏了传染规则,事件 4 必然错输出 `"0"`。这就是官方特意加第 4 个事件的原因。
+- **事件 1 不回溯改判**:它的值后来(事件 2)被拉黑了,但它当时已经返回 `"0"` —— 决策按流的顺序做出,流式系统不改历史输出(production 讨论点:真实系统可以把它丢进人工复核队列)。
+- **先查再加**:判定用的是"处理前"的黑名单;如果先把自己的值加进去再查,每个事件都会命中自己。
+
 **参考实现(已验证):**
 
 ```java
@@ -464,6 +599,26 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 // - 干净事件的 PII 不被记录:同一干净 PII 出现两次,第二次仍是 "0"
 // - fraud_flag 之后,与其毫无交集的 underwriting -> "0"
 ```
+
+**错误实现 × 测试矩阵(每个输出都是对应版本代码实际运行的结果):**
+
+自造 Case C(期望 `0`, `0`):两条干净的 underwriting 共享同一个 phone —— 专抓"干净交易的 PII 也被记录"这个官方测试抓不到的错误:
+
+```json
+[
+    {"event_type": "underwriting", "customer_details": {"phone": "555-000-1234"}, "loan_amount": 100},
+    {"event_type": "underwriting", "customer_details": {"phone": "555-000-1234"}, "loan_amount": 200}
+]
+```
+
+| 实现版本 | Test 0(期望 0, 空, 1, 1) | Case C(期望 0, 0) |
+|---|---|---|
+| W1:漏传染(只记录 fraud_flag 的 PII) | 0, 空, 1, **0 ✗** | 0, 0 ✓ |
+| W2:先 add 后 check | **1 ✗**, 空, 1, 1 | **1 ✗**, **1 ✗** |
+| W3:干净交易的 PII 也记录(先 check 后无脑 add) | 0, 空, 1, 1 ✓(**官方测试抓不到!**) | 0, **1 ✗** |
+| 最终正确版 | 0, 空, 1, 1 ✓ | 0, 0 ✓ |
+
+结论:W1 死在官方第 4 个事件上;W2 第一个事件就露馅;**W3 能骗过官方测试**,所以 Case C 值得当场自造 —— 向面试官证明"我知道干净交易不该被记录"。
 
 ## 五、坑清单(按翻车概率排序)
 
