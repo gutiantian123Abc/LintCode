@@ -4,74 +4,148 @@
 
 | 项目 | 说明 |
 |---|---|
-| 出现记录 | 面经 #2(InterviewDB 原题)、#19(店面,称"面经老题")、#25(店面,三问变体)、#32(店面)、#24(VO 也考过同题) |
+| 出现记录 | 面经 #2(InterviewDB 原题)、#19(店面,"面经老题")、#25(店面,三问变体)、#32(店面)、#24(VO 也考过同题) |
 | 题型 | Part 1:Debug 现有类 · Part 2:实现新类(同一套事件模型) |
 | 核心考点 | HashSet 去重与 O(1) 查找、事件流增量处理、字段白名单、防御式编程 |
 | 参考战绩 | #19 帖主 30 分钟内做完两问 + 跑完 test case,说明熟练后时间很充裕 |
 
-> 本文所有 Java 代码都已实际编译运行、测试全部通过,可以直接复制到本地练习:`javac FraudDetection.java && java FraudDetection`
+> 本文所有 Java 代码都已实际编译运行、测试全部通过;第三节的"修复路径 × 测试矩阵"里每一个数字都是把对应版本的代码真跑出来的结果,不是推测。
 
 ---
 
-## 一、英文原版题干(面试时你看到的样子)
+## 一、英文原版题干(面试页面还原)
 
-### Part 1 — Debug: DistinctPIIValuesCounter
+### Part 1 — Debug: DistinctPIIValuesCounter(HackerRank 页面原样)
 
-> One of Affirm's competitive edges is our ability to do credit underwriting and detect potential fraud quickly. We're building out a new event-driven architecture, where we have event consumers listening to a stream of underwriting and fraud events. The **DistinctPIIValuesCounter** is one such event consumer, and it's responsible for **counting the total number of Personally Identifiable Information (PII) values that are present in all events with type `underwriting`**.
->
-> We've noticed that DistinctPIIValuesCounter has been misbehaving recently and producing the incorrect results. It's likely that the code has **one or more bugs** in it. We'd like you to investigate the code and help fix this part of the system!
->
-> To simulate the event stream, we will pass in a JSON list of objects, with each dictionary representing a single event. The `handle_event` method will be called sequentially for each of these objects. At the end, we will call `get_total_unique_pii_values` and assert that the correct number of unique PII values was counted.
->
-> **Constraints:** Neither method should exceed a runtime complexity greater than O(log n), where n is the total number of events.
+**Description**
 
-**Event Schema(重点!bug 都藏在这张表里):**
+One of Affirm's competitive edges is our ability to do credit underwriting and detect potential fraud quickly. We've put a great deal of engineering work into optimizing every part of the process, and our merchant partners rely on us to reliably produce a decision in seconds.
 
-| 事件类型 | 字段 | 是否必填 | 类型 | 是否 PII |
-|---|---|---|---|---|
-| (所有事件) | event_type | 必填 | string | — |
-| underwriting | loan_amount | 必填 | int | 否 |
-| underwriting | customer_details | 必填 | dict | — |
-| underwriting | customer_details.phone | **必填** | string | **是** |
-| underwriting | customer_details.email | 可选 | string | **是** |
-| underwriting | customer_details.address | 可选 | string | **是** |
-| underwriting | customer_details.ssn | 可选 | string | **是** |
-| underwriting | customer_details.credit_score | 可选 | int | **否!** |
-| fraud_flag | customer_details | 必填 | dict | — |
-| fraud_flag | phone/email/address/ssn | 均可选 | string | 是 |
+We're building out a new event-driven architecture, where we have event consumers listening to a stream of underwriting and fraud events. The `DistinctPIIValuesCounter` is one such event consumer, and it's responsible for **counting the total number of Personally Identifiable Information (PII) values that are present in all events with type `underwriting`**.
 
-**Test Case 0(期望 6):** 三个事件 —— underwriting(4 个 PII)→ fraud_flag(同样 4 个 PII)→ underwriting(address 和 ssn 与第一个相同,phone/email 是新的)。6 个不同值:`123 Main St / 182-920-4124 / 947-213-9402 / johndoe@gmail.com / janedoe@yahoo.com / 4568698929`。fraud_flag 事件**不参与统计**。
+We've noticed that `DistinctPIIValuesCounter` has been misbehaving recently and producing the incorrect results. It's likely that the code has **one or more bugs** in it. We'd like you to investigate the code and help fix this part of the system!
 
-**Test Case 1(期望 3):** 单个 underwriting 事件,只有 address/phone/email 三个字段(没有 ssn)→ 3。
+To simulate the event stream, we will pass in a JSON list of objects, with each object representing a single event in the stream. The `handleEvent` method will be called sequentially for each of these objects. At the end, we will call the `getTotalUniquePiiValues` function and assert that the correct number of unique PII values was counted.
 
-**带 bug 的原始代码(Python 原版,面试选 Java 会给等价 Java 版):**
+**Example (Test Case 0)**
 
-```python
-@dataclass
-class Event:
-    event_type: str
-    loan_amount: Optional[int] = None
-    customer_details: Optional[Dict[str, str]] = None
-
-class DistinctPIIValuesCounter:
-    def __init__(self):
-        self.pii_set = set()
-
-    def handle_event(self, event: Event) -> None:
-        details = event.customer_details
-        if not details:
-            return
-        self.pii_set.add(details.get("address", ""))
-        self.pii_set.add(details.get("phone", ""))
-        self.pii_set.add(details.get("email", ""))
-
-    def get_total_unique_pii_values(self) -> int:
-        return len(self.pii_set)
+```json
+[
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "182-920-4124",
+            "email": "johndoe@gmail.com",
+            "ssn": "4568698929"
+        },
+        "loan_amount": 3000
+    },
+    {
+        "event_type": "fraud_flag",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "182-920-4124",
+            "email": "johndoe@gmail.com",
+            "ssn": "4568698929"
+        }
+    },
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "947-213-9402",
+            "email": "janedoe@yahoo.com",
+            "ssn": "4568698929"
+        },
+        "loan_amount": 3000
+    }
+]
 ```
 
-等价的带 bug Java 版(自己练习时从这个版本开始改):
+Expected result:
 
 ```java
+assert eventConsumer.getTotalUniquePiiValues() == 6;
+```
+
+*Explanation: There are 6 distinct PII values across all underwriting type events: `123 Main St` / `182-920-4124` / `947-213-9402` / `johndoe@gmail.com` / `janedoe@yahoo.com` / `4568698929`*
+
+**Example (Test Case 1)**
+
+```json
+[
+    {
+        "event_type": "underwriting",
+        "customer_details": {
+            "address": "123 Main St",
+            "phone": "182-920-4124",
+            "email": "johndoe@gmail.com"
+        },
+        "loan_amount": 3000
+    }
+]
+```
+
+Expected result:
+
+```java
+assert eventConsumer.getTotalUniquePiiValues() == 3;
+```
+
+**Function Description:** Complete the methods `handleEvent` and `getTotalUniquePiiValues` in the editor.
+
+**Returns:** int — the total number of unique PII values across all `underwriting` type events
+
+**Constraints:** Neither method should exceed a runtime complexity greater than O(log n), where n is the total number of events.
+
+**Event Schema**
+
+| Required | Field - Type |
+|---|---|
+| yes | event_type - string |
+
+**underwriting Event Schema:**
+
+| Required | Field - Type |
+|---|---|
+| yes | event_type - str: "underwriting" |
+| yes | loan_amount - int |
+| yes | customer_details - dict |
+| yes | customer_details.phone - string **(pii)** |
+| no | customer_details.email - string **(pii)** |
+| no | customer_details.address - string **(pii)** |
+| no | customer_details.ssn - string **(pii)** |
+| no | customer_details.credit_score - int |
+
+**fraud_flag Event Schema:**
+
+| Required | Field - Type |
+|---|---|
+| yes | event_type - str: "fraud_flag" |
+| yes | customer_details - dict |
+| no | customer_details.phone - string **(pii)** |
+| no | customer_details.email - string **(pii)** |
+| no | customer_details.address - string **(pii)** |
+| no | customer_details.ssn - string **(pii)** |
+
+**Existing code with bugs(Java 版 —— 你选 Java 就会拿到这种版本,与面经 Python 原版一比一对应、保留同样的 bug):**
+
+```java
+import java.util.*;
+
+class Event {
+    String eventType;
+    Integer loanAmount;                  // may be null
+    Map<String, String> customerDetails; // may be null
+
+    Event(String eventType, Integer loanAmount, Map<String, String> customerDetails) {
+        this.eventType = eventType;
+        this.loanAmount = loanAmount;
+        this.customerDetails = customerDetails;
+    }
+}
+
 class DistinctPIIValuesCounter {
     private final Set<String> piiSet = new HashSet<>();
 
@@ -90,6 +164,52 @@ class DistinctPIIValuesCounter {
     }
 }
 ```
+
+编辑器里还会有一段标着 "do not modify" 的 harness:读 stdin 的 JSON → 构造 Event → 循环调用 `handleEvent` → 打印/断言计数。那部分不用你动,你只改 `DistinctPIIValuesCounter`。
+
+**面经收录的 Python 原版(出处对照用,bug 完全相同):**
+
+```python
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+@dataclass
+class Event:
+    event_type: str
+    loan_amount: Optional[int] = None
+    customer_details: Optional[Dict[str, str]] = None
+
+class DistinctPIIValuesCounter:
+    def __init__(self):
+        self.pii_set = set()
+
+    def handle_event(self, event: Event) -> None:
+        details = event.customer_details
+        if not details:
+            return
+
+        self.pii_set.add(details.get("address", ""))
+        self.pii_set.add(details.get("phone", ""))
+        self.pii_set.add(details.get("email", ""))
+
+    def get_total_unique_pii_values(self) -> int:
+        return len(self.pii_set)
+```
+
+**中文对照 schema(合并版):**
+
+| 事件类型 | 字段 | 是否必填 | 类型 | 是否 PII |
+|---|---|---|---|---|
+| (所有事件) | event_type | 必填 | string | — |
+| underwriting | loan_amount | 必填 | int | 否 |
+| underwriting | customer_details | 必填 | dict | — |
+| underwriting | customer_details.phone | 必填 | string | 是 |
+| underwriting | customer_details.email | 可选 | string | 是 |
+| underwriting | customer_details.address | 可选 | string | 是 |
+| underwriting | customer_details.ssn | 可选 | string | 是 |
+| underwriting | customer_details.credit_score | 可选 | int | **否!** |
+| fraud_flag | customer_details | 必填 | dict | — |
+| fraud_flag | phone/email/address/ssn | 均可选 | string | 是 |
 
 ### Part 2 — Implement: FraudDetector
 
@@ -113,12 +233,19 @@ class DistinctPIIValuesCounter {
 
 ## 二、中文题意精读(动笔前的 checklist)
 
+**读题时要抓死的三句话 —— 一句对应一个 bug:**
+
+1. Description 里 "present in all events **with type underwriting**" → 统计范围只有 underwriting,fraud_flag 完全不算 →(Bug ①)。
+2. Schema 表里标 **(pii)** 的字段恰好四个:phone、email、address、**ssn**;credit_score 没有 (pii) 标记 →(Bug ②)。
+3. Schema 表里 email/address/ssn 的 Required 是 **no** → 这些 key 可能整个不存在,取不到要跳过而不是给默认值 →(Bug ③)。
+
 Part 1 规则:
 
 - 只统计 `event_type == "underwriting"` 的事件,fraud_flag 完全跳过。
 - PII 字段白名单 = **phone / email / address / ssn 四个**;`credit_score` 不是 PII,`loan_amount` 也不是。
 - email / address / ssn 是可选字段,可能缺失 —— 缺失就跳过,不能产生空串。
 - 求的是跨所有 underwriting 事件、跨字段的**全局去重值总数**(同一个 ssn 出现在两个事件里只算一次;address 和 phone 如果字符串相同也只算一次)。
+- O(log n) 约束的真实含义:别在读取时全量重扫事件 —— 用成员 set 增量维护后,`handleEvent` 每次最多碰 4 个字段是 O(1),`getTotalUniquePiiValues` 是 O(1),优于要求,主动说出来。
 
 Part 2 规则:
 
@@ -126,22 +253,89 @@ Part 2 规则:
 - fraud_flag:把它的全部 PII 值加入 suspicious 集合,返回 `""`。
 - underwriting:任一 PII 值命中 suspicious 集合 → 可疑 → 返回 `"1"`,**并把它自己的全部 PII 值也加入集合(传染)**;否则返回 `"0"`,并且**什么都不记录**(干净交易的 PII 不进任何集合)。
 
-## 三、Part 1:三个 bug 逐个抓
+## 三、Part 1:三个 bug 逐个抓(讲解 + 修复全过程)
 
 | # | Bug | 症状 | 修复 |
 |---|---|---|---|
-| 1 | 没有过滤 `event_type` | fraud_flag 事件的 PII 也被计入,多算 | `handleEvent` 开头:非 underwriting 直接 return |
-| 2 | 漏了 `ssn` 字段 | 少算(Test 0 会返回 5 而不是 6) | 用字段白名单 `[address, phone, email, ssn]` 循环 |
-| 3 | `getOrDefault(field, "")` 把空串塞进 set | 只要有任何事件缺字段,就多算 1 | 取值后判 `null / isEmpty` 再 add |
+| 1 | 没过滤 `event_type` | fraud_flag 里的 PII 被计入,多算 | `handleEvent` 开头:非 underwriting 直接 return |
+| 2 | 漏了 `ssn` 字段 | 少算(Test 0 返回 5 而不是 6) | 用字段白名单 `[address, phone, email, ssn]` 循环 |
+| 3 | `getOrDefault(x, "")` 把空串塞进 set | 只要有任何事件缺字段,总数凭空多 1 | 取值后判 `null / isEmpty` 再 add |
+
+**逐个细讲:**
+
+- **Bug ①(没过滤 event_type):**`handleEvent` 从头到尾没看过 `event.eventType`,fraud_flag 事件的 PII 照收不误。狡猾之处:Test 0 里那条 fraud_flag 的四个值和第 1 条 underwriting 完全相同,set 去重后毫无痕迹 —— **两个官方测试都抓不到这个 bug**,只能靠重读题干发现,或自造用例暴露(见下面的 Case A)。
+- **Bug ②(漏了 ssn):**代码只 add 了 address、phone、email 三行,ssn 从没被读过。这是 Test 0 返回 5 而不是 6 的直接原因 —— 差的那 1 个就是 `4568698929`。
+- **Bug ③(缺失字段塞空串):**`getOrDefault(field, "")` 在 key 缺失时把 `""` 加进 set。多个事件缺字段也只共享同一个 `""`,所以症状是"总数凭空多 1"。原始代码上它暂时没发作(Test 1 三个 key 都在),但你修 Bug ② 时若照抄这个风格写 `getOrDefault("ssn", "")`,Test 1 立刻从 3 变 4。
 
 **当场的调试方法论(边做边说出来,这正是评分项 Debugging):**
 
-1. 先跑给定的 Test 0:期望 6,实际 5 → 说明有"少算"的 bug → 对照 schema 表逐字段检查 → 发现漏了 ssn。
-2. 重读需求第一句:"all events with type underwriting" → 检查代码 → 没有 event_type 过滤 → 修。
-3. 主动问自己"可选字段缺失会怎样?" → 发现 `getOrDefault(x, "")` 会把 "" 加进 set → 修,并**自己造一个最小用例验证**(一个只有 phone 的 underwriting 事件,期望 1)。
-4. 每修一个 bug 重跑全部用例,修完后把三个自造用例也留着 —— 面试官会注意到你补了测试。
+1. 先跑给定的 Test 0:期望 6,实际 5 → 说明有"少算"的 bug → 把 set 里的 5 个值和 explanation 里的 6 个值对一下,缺 `4568698929` → 对照 schema 表 → 漏了 ssn。
+2. 修 ssn 时别照抄 `getOrDefault` 风格,否则 Test 1 变 4 → 顺势把整段改成"白名单循环 + 判空跳过",根治 Bug ③。
+3. 两灯全绿后别停:重读需求第一句 "all events with type underwriting" → 发现没有 event_type 过滤 → 修,并**自己造最小用例验证**(官方测试对这个 bug 是瞎的)。
+4. 每修一个 bug 重跑全部用例,修完后把自造用例留着 —— 面试官会注意到你补了测试。
 
-**修复后的完整 Java 版(已验证,含测试):**
+**修复路径 × 测试矩阵(每个数字都是对应版本代码实际运行的结果):**
+
+自造用例定义:
+
+```json
+Case A(期望 1):underwriting 的 phone 是唯一 PII;fraud_flag 带一个独有 phone,不应被计入
+[
+    {"event_type": "underwriting", "customer_details": {"phone": "111-111-1111"}, "loan_amount": 500},
+    {"event_type": "fraud_flag",   "customer_details": {"phone": "999-999-9999"}}
+]
+
+Case B(期望 1):单条 underwriting,只有 phone,其余 3 个可选字段全缺
+[
+    {"event_type": "underwriting", "customer_details": {"phone": "111-111-1111"}, "loan_amount": 500}
+]
+```
+
+| 代码状态 | Test 0(期望 6) | Test 1(期望 3) | Case A(期望 1) | Case B(期望 1) |
+|---|---|---|---|---|
+| V0 原始 buggy 版 | **5 ✗** | 3 ✓(碰巧) | **3 ✗**("" 和 999 都混入) | **2 ✗**("" 混入) |
+| V1 = V0 + 一行 `getOrDefault("ssn","")` | 6 ✓ | **4 ✗**("" 混入) | **3 ✗** | **2 ✗** |
+| V2 = 白名单循环 + 判空(修完②③) | 6 ✓ | 3 ✓ | **2 ✗**(999 仍混入) | 1 ✓ |
+| V3 = V2 + event_type 过滤(最终版) | 6 ✓ | 3 ✓ | 1 ✓ | 1 ✓ |
+
+看这张表能记住全题精髓:官方两条测试只能把你推到 V2;**V2 → V3 的最后一步只能靠读题 + 自造 Case A**,而这一步恰恰是面试官最想看到的。
+
+**修复后的答案(面试交付版 —— Part 1 单独作答就写这个):**
+
+```java
+class DistinctPIIValuesCounter {
+
+    /** PII field whitelist straight from the schema table. credit_score is NOT PII. */
+    private static final List<String> PII_FIELDS = List.of("address", "phone", "email", "ssn");
+
+    private final Set<String> piiSet = new HashSet<>();
+
+    public void handleEvent(Event event) {
+        // Fix 1: only events with type "underwriting" are counted.
+        if (!"underwriting".equals(event.eventType)) {
+            return;
+        }
+        Map<String, String> details = event.customerDetails;
+        if (details == null) {
+            return;
+        }
+        // Fix 2: iterate the full PII whitelist, including ssn.
+        for (String field : PII_FIELDS) {
+            String value = details.get(field);
+            // Fix 3: a missing/blank field contributes nothing (never add "").
+            if (value != null && !value.isEmpty()) {
+                piiSet.add(value);
+            }
+        }
+    }
+
+    public int getTotalUniquePiiValues() {
+        return piiSet.size();
+    }
+}
+```
+
+**进入 Part 2 后的重构版(把 PII 提取抽成共用工具 —— 当第二问出现时做这个重构,本身就是 Design 加分动作):**
 
 ```java
 import java.util.*;
@@ -203,9 +397,6 @@ public class FraudDetection {
     }
 }
 ```
-
-> 把 `extractPiiValues` 提成静态工具方法是有意为之:Part 2 直接复用,面试官会看到你的 Design 意识。
-> 关于 O(log n) 约束:它的真实含义是"别每次调用都全量重扫事件",增量维护 set 后,`handleEvent` 均摊 O(1)(固定 4 个字段)、`getTotalUniquePiiValues` O(1),远优于要求 —— 主动说出这一点。
 
 ## 四、Part 2:FraudDetector 实现
 
@@ -314,7 +505,7 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 | 时间 | 做什么 |
 |---|---|
 | 0–8 min | 读 Part 1 题干 + schema 表,手过 Test 0 |
-| 8–20 min | 定位并修复 3 个 bug,每修一个跑一次,补 2–3 个自造用例 |
+| 8–20 min | 定位并修复 3 个 bug,每修一个跑一次,补 Case A / Case B 自造用例 |
 | 20–25 min | 读 Part 2,复述规则(尤其传染规则)向面试官确认 |
 | 25–45 min | 写 FraudDetector + 跑 Test 0 + 边界用例 |
 | 45–55 min | Follow-up:数据结构选择、production 改造 |
