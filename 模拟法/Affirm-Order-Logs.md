@@ -238,19 +238,113 @@ trustScore("uuid4", "Phone", 120) -> 50    // 再查一次仍是 50:pending 没�
 8. **百分比取整**:官方例子都是整百分比;先按 `Math.round` 写,口头说明"如果 spec 要求向下取整我改成 floor"——这就是 Communication 分。
 9. 金额类型:例子全是整数,用 `long` 即可;口头补一句"生产上钱用 BigDecimal 或以分为单位的 long"。
 
-## 七、必备 Follow-up 问答
+## 七、必备 Follow-up 问答(零基础详解版)
 
-**Q:再来第三天的日志怎么办?**
-`ingest(logC)` 直接可用(date 是 Set,天数自然累加),再跑一次 `computeEstablishedUsers()`。这正是 profile 设计的红利 —— 主动展示扩展性。
+这道题代码本身不难,写得快会剩下 15~20 分钟——**这段时间的 follow-up 表现基本决定评级**。追问主轴就四个方向:**数据变多**(第三天、大文件、亿级)、**规则变化**(阈值、权重)、**钱的敏感性**(金额精度、脏行),以及**上线服务化**(物化、配置、A/B)。每问配英文问法和可照着说的回答脚本。
 
-**Q:established 的判定条件将来会变(比如 ≥3 天、≥5 种类型)?**
-把 `2 / 2` 抽成构造器参数或配置,判定逻辑单独一个方法。
+### Q1:再来第三天的日志怎么办?
 
-**Q:上 production 前改什么?**
-解析层与业务层分离(单独 LogParser,可单测);malformed 行进 DLQ 并出 metrics 而不是 stderr;金额用分/BigDecimal;日志文件大到内存放不下就流式逐行处理(本设计天然支持,profile 是增量更新的);established 结果可物化成表供风控实时查;trust score 权重(50/50、1 分每 1%)做成配置以便 A/B 调参。
+面试官的英文问法:"What if we get a third day of logs?" / "How does this extend?"
 
-**Q:为什么用 HashSet 存 dates/types?**
-只需要"去重后的个数"和"包含性查询",Set 语义精确匹配,均摊 O(1)。
+**为什么我们的设计天然支持:**关键在 Part 1 建模时就没把"两个文件"写死。反面教材是最直觉的写法——"文件 A 的用户集合 ∩ 文件 B 的用户集合"(`usersInA.retainAll(usersInB)`):它把**输入的形态**(恰好两个文件)编码进了逻辑,第三个文件一来就要推倒重写。我们的写法是把**规则的语义**("在 ≥2 个不同日期活跃")建模成 `activeDates` 这个 Set——第三天就是再调一次 `ingest(logC)`、重跑一次 `computeEstablishedUsers()`,核心逻辑一行不改。通用面试心法:**按语义建模,不按输入形态建模。**
+
+**English 回答脚本:**
+> "The design already supports it — I modeled 'days active' as a set of dates rather than 'appears in file A and file B', so a third file is just another ingest call, and the rule keeps working off the count of distinct dates. That's exactly why I avoided the set-intersection approach: it hard-codes the shape of the input instead of the meaning of the rule."
+
+### Q2:established 的判定条件将来会变怎么办?(比如 ≥3 天、≥5 种类型)
+
+面试官的英文问法:"What if the definition of 'established' changes?"
+
+**背景概念——魔法数字(magic number):**直接写死在代码里的 `2`,三个月后没人记得它是什么意思、敢不敢改。规则里的数字应该抽成**有名字的参数**:构造器参数 `minActiveDays` / `minLoanTypes`,判定收进一个 `isEstablished(profile)` 方法。再进一步放**配置中心**(公司里专门存"可调参数"的服务),风控团队改配置即生效,不改代码、不发版。trust score 的 50/50 和"1 分每 1%"同理——**它们是产品旋钮,不是代码**。
+
+```java
+public EstablishedUserService(List<String> logA, List<String> logB,
+                              int minActiveDays, int minLoanTypes) { ... }
+
+private boolean isEstablished(UserProfile p) {
+    return p.activeDates.size() >= minActiveDays && p.loanTypes.size() >= minLoanTypes;
+}
+```
+
+**English 回答脚本:**
+> "I'd pull the thresholds out as constructor parameters or config — minDays and minLoanTypes — and keep the rule in a single isEstablished method. Ideally they live in a config service so the risk team can tune them without a deploy. Same for the scoring weights: the 50/50 split and one-point-per-percent are product knobs, not code."
+
+### Q3:为什么用 HashSet 存 dates/types?为什么金额只存 min/max 两个数?
+
+面试官的英文问法:"Why sets? And why keep only min and max?"
+
+**Set 的部分:**规则要的是"**不同**天数 ≥ 2"和"这个类型**见过没有**"——正好是 Set 的两个本能:自动去重、O(1) 包含性查询。用 List 会埋一个无声 bug:同一天两笔交易,List 里存两条 `"2025-01-01"`,数 `size()` 得 2 天,用户被错判为 established;Set add 两次还是一个,天然正确。
+
+**min/max 的部分(主动说出来是亮点):**金额只存两个 long,因为规则只需要**边界**。这叫**可增量聚合**——每来一条日志 O(1) 更新、每用户 O(1) 空间,不必保留任何历史金额。值得补一句:**这个选择是跟着规则走的**——如果哪天规则改成"金额中位数"或"P95",min/max 就不够了,因为分位数不可增量(要么保留全部数据,要么用 t-digest 这类专门估算分位数的近似结构)。能说出"聚合结构的选择取决于规则需要什么",就是数据工程的真功夫。
+
+**English 回答脚本:**
+> "Sets give me exactly the semantics the rule needs: a distinct-day count and a 'have I seen this loan type' check. With a list, two transactions on the same day would silently count as two days. For amounts I keep only min and max, because the rule only needs the bounds — that's an O(1)-space, O(1)-update aggregate. If the rule ever asked for a median or a P95, I'd switch to something like a t-digest — the aggregate follows the rule."
+
+### Q4:金额处理有什么要注意的?(钱和 double 的经典问题)
+
+面试官的英文问法:"Any concerns with how you're handling the amounts?"
+
+**背景概念——为什么 double 存不准钱:**double 是**二进制**小数。十进制的 0.1 换成二进制是无限循环小数(0.000110011…),64 位装不下只能截断,存进去的是**最接近的近似值**。误差平时看不见,一做运算就现形。这不是理论,本机 JDK 21 实跑结果:
+
+```java
+System.out.println(0.1 + 0.2);        // 0.30000000000000004
+System.out.println(0.1 + 0.2 == 0.3); // false
+new BigDecimal("0.1").add(new BigDecimal("0.2"))  // 0.3(精确)
+```
+
+钱差一分就是对账事故。行业规矩两条路:**用最小货币单位的整数**(以"分"为单位的 long——本题样例全是整数,long 直接够),或 **BigDecimal**(按十进制存、绝对精确,代价是慢和啰嗦,常用在系统出入口)。
+
+**那我们代码里的 double 百分比呢?**没问题,但要能说明白:`percentAway` 只用于算扣分,最后 `Math.round` 到整数分,double 的误差量级(约 1e-15)远小于 0.5 分的取整档位,不影响结果;取整用 round 还是 floor 是产品决定,主动和面试官确认——这句本身就是加分点。
+
+**English 回答脚本:**
+> "The sample amounts are integers, so I used long. I'd avoid double for money entirely — binary floating point can't represent decimals exactly; the classic demo is 0.1 plus 0.2 printing 0.30000000000000004. In production I'd store cents as a long, or use BigDecimal at the boundaries. Using double just for the percentage penalty is fine because we round to whole points and the error is many orders of magnitude smaller than the rounding step — but I'd confirm the rounding rule."
+
+### Q5:日志文件大到内存放不下怎么办?
+
+面试官的英文问法:"What if the log file doesn't fit in memory?"
+
+**背景概念——先分清两种"放不下"。**把处理过程想成水管接水缸:日志行是**流过水管的水**,profiles 是**沉淀在水缸里的东西**。
+
+- **水太多(日志行数多):**完全没问题。profile 本来就是逐行增量更新的,把 `List<String>` 换成 `BufferedReader` 逐行流式读,任一时刻内存里只有"当前一行 + 水缸",与文件大小无关。这是本设计免费送的能力,主动说。
+- **缸太小(用户数多到几千万个 profile 都装不下):**这才是真问题,升级到 Q6。
+
+**English 回答脚本:**
+> "Structurally nothing changes — profiles are built incrementally line by line, so I'd swap the in-memory list for a buffered reader and stream the file. Memory is bounded by the number of distinct users, not the number of log lines. If even the profiles don't fit, that's a different problem — then I'd partition by user."
+
+### Q6:每天几亿条日志、几千万用户,怎么算?
+
+面试官的英文问法:"How would you scale this to hundreds of millions of lines?"
+
+**背景概念——按 key 分组的分而治之。**像邮局分拣:先按省份把信分堆,每个省的分拣员只处理自己那堆,互不打扰。这里"省份" = `hash(userId) % N`:日志按 userId 哈希切成 N 份 → **同一个用户的所有行必然落进同一份** → N 台机器各自独立跑我们这套 profile 聚合 → 各自输出自己那份用户的 established 名单 → 结果**直接拼接**,不需要任何跨机器合并。这正是 MapReduce / Spark `groupBy` 的思想;这题特别适合,因为 per-user 聚合量是常数大小(两个 Set + 两个 long)。
+
+数据已经在数仓里时,一句 SQL 就是答案(风控同事真的这么跑):
+
+```sql
+SELECT user_id
+FROM loan_logs
+GROUP BY user_id
+HAVING COUNT(DISTINCT log_date)  >= 2
+   AND COUNT(DISTINCT loan_type) >= 2;
+```
+
+**一个显深度的对比:**这题能"切完各算各的",是因为规则**只依赖单个用户自己的数据**。如果规则含全局信息(比如"金额排进全站前 1%"),单靠分区不够,需要两阶段(先各自算局部,再汇总全局)。主动指出这个边界,说明你真理解了为什么能并行。
+
+**English 回答脚本:**
+> "This aggregation is embarrassingly parallel: hash-partition the logs by userId so all of a user's lines land on the same worker; each worker builds its profiles independently and the outputs just concatenate — no cross-worker merge, because the rule only depends on each user's own data. That's the standard MapReduce groupBy pattern. And if the data already sits in a warehouse, it's a four-line SQL with GROUP BY and HAVING on two COUNT DISTINCTs."
+
+### Q7:上 production 前改什么?(汇总清单)
+
+面试官的英文问法:"What would you change before shipping this?"
+
+金额(Q4)、规模(Q5/Q6)、配置化(Q2)前面已覆盖,剩下按三个桶:
+
+- **数据质量:**解析层单独成类(`LogParser`,可单测);malformed 行不打 stderr,进死信通道并出**脏行率**指标 + 告警(概念同 01 文档的 DLQ 一节)——脏行率突然升高 = 上游格式变了。
+- **服务化:**established 名单**物化**成表。"物化"= 把每次要现算的结果**提前算好、存成一张表**,放款决策路径毫秒级查表,而不是每次全量扫日志重算;每日定时任务刷新。这和 01 文档 Part 2 的 read-optimized view 是同一个思想。
+- **可调可实验:**阈值和评分权重进配置且**版本化**;做 **A/B 测试**(把用户分两组用不同权重,比较放款率/坏账率,用数据定参数)时只改配置不发版。
+- **可观测:**每日处理行数、脏行率、established 用户数及环比(突然掉一半 = 上游丢数据)。
+
+**English 回答脚本(挑三条说透):**
+> "Three buckets. Data quality: a separate, unit-tested parser, and malformed lines go to a dead-letter path with a bad-line-rate metric instead of stderr. Serving: materialize the established list into a table the decision path can query in milliseconds, refreshed on a schedule, instead of rescanning logs. And tunability: thresholds and score weights live in versioned config so the risk team can tune or A/B them without a deploy. Plus the money handling we discussed — cents as longs, never double."
 
 ## 八、60 分钟时间分配
 
