@@ -709,6 +709,19 @@ detector.handleEvent(underwriting("654 5th Ave", "947-213-9402", "jamesdoe@hotma
 
 怎么改:schema 校验 + 单条 try/catch + 失败进 DLQ + "DLQ 进件突然变多"报警(那意味着上游坏了)。
 
+**"每条 message 包 try-catch"具体是什么意思:**假设队列里有几十万条消息,处理到第 5 万条时抛了异常。不 catch:这个消费线程直接挂掉,后面所有好消息全堵死。包一层 try-catch:catch 住异常 → 把这条坏消息扔进 DLQ → 接着处理第 50001 条,主流水不中断。
+
+```java
+for (Message msg : queue) {
+    try {
+        handleEvent(parse(msg));      // 业务逻辑
+    } catch (Exception e) {
+        deadLetterQueue.send(msg, e); // 坏消息进 DLQ 留证
+        metrics.increment("dlq");     // 计数,供告警
+    }                                 // 不重新抛出 -> 循环继续
+}
+```
+
 **English 回答脚本**(可能的问法:"What if an event is malformed?"):
 > "I'd make sure one bad event can never take down the consumer. Today a malformed payload would throw, and with retries it becomes a poison pill blocking everything behind it. So: schema validation up front, a try-catch around each event, and failures go to a dead-letter queue with an alert on the DLQ rate — the stream keeps flowing and we debug the bad data on the side."
 
@@ -863,6 +876,47 @@ static void demo3() throws Exception {
 
 面试手写时,Demo 3 的结构就是标准答案骨架:`synchronized` 包住 fraud_flag 的整段写入、包住 underwriting 的"查+传染写入",共用一把锁。可以再补一句英文:"On a single box I'd use one lock around the whole check-and-taint; across instances, the same idea becomes a Redis Lua script — Redis's single-threaded execution gives me the atomicity for free."
 
+#### 多实例场景的落地细节:为什么普通 Redis 命令还不够,非要 Lua 脚本?
+
+Redis 执行**单条**命令是单线程的,但**多条命令之间不是原子的**:客户端先发 `SISMEMBER`,等结果穿过网络回来,再决定要不要发 `SADD`——这两次网络往返之间,其他实例的命令随便插队。竞态时间线(就是 Demo 2 的分布式版,插队的从"别的线程"变成"别的实例"):
+
+```text
+1. 实例 A 处理 underwriting:发 SISMEMBER → 返回"不存在"
+2. 同一瞬间,实例 B 处理 fraud_flag:SADD 把相同的 PII 加进了集合
+3. 实例 A 基于已经过时的查询结果返回 "0" → 漏判
+```
+
+解法:把"查 + 条件加"打包成**一个 Lua 脚本**发给 Redis。Redis 执行 Lua 脚本时单线程一口气跑完,中间不切换到任何其他客户端的命令——整个脚本天然原子,效果等同 Demo 3 的那把锁。
+
+underwriting 用的脚本(核心逻辑):
+
+```lua
+-- KEYS[1] = 集合名(例如 "suspicious_pii")
+-- ARGV    = 当前事件提取出的所有 PII 值
+
+local key = KEYS[1]
+
+-- 先查:任意一个值已在集合里?
+for i = 1, #ARGV do
+    if redis.call('SISMEMBER', key, ARGV[i]) == 1 then
+        -- 命中 → 传染:把本事件的全部值加入
+        for j = 1, #ARGV do
+            redis.call('SADD', key, ARGV[j])
+        end
+        return '1'
+    end
+end
+
+-- 一个都没命中:什么都不记
+return '0'
+```
+
+fraud_flag 更简单:直接对全部值 `SADD`、返回空串——可以单独一个脚本,也可以同一脚本用参数区分事件类型。
+
+Java 侧调用(Jedis):脚本作为字符串放在 Java 代码里,用 `jedis.eval(script, keys, args)` 发送;生产环境先 `SCRIPT LOAD` 预加载一次,之后用 `EVALSHA` 只传脚本哈希,省网络传输。
+
+面试简洁版话术:"黑名单放 Redis,所有实例共享一份状态;Set 存 PII 值,SADD/SISMEMBER 都是 O(1)。用 Lua 脚本把'先查后加'绑成原子操作——Redis 单线程执行整个脚本,中间不可能被别的实例插队。"
+
 ---
 
 **5. 可观测性(让服务"能被看见")**
@@ -924,7 +978,7 @@ static void demo3() throws Exception {
 - 关键性质背下来:**没有假阴性**(说"没有"绝对可靠),**有少量假阳性**(说"有"需要复核)。
 - 用法:放在每台应用服务器本地内存当第一道门。绝大多数干净交易在这里得到"绝对没见过"→ 直接放行,零网络开销;少数"可能见过"的,再去 Redis 权威确认。
 - 为什么省:不存值本身只存 bit。10 亿个值、1% 误报率 ≈ 1.2 GB,单机内存轻松放。
-- 局限一句话:标准 Bloom filter 不支持删除(多个值共享 bit,删除会误伤别人);要删除就换 counting Bloom filter / cuckoo filter。
+- 局限:标准 Bloom filter **不支持删除**。**"删除"在这里指什么:**把某个 PII 值从黑名单移除——比如运营发现某条 fraud_flag 标错了,要把那个 SSN/电话摘出来。做不到安全删除的原因:多个值可能共享同一个 bit 位,把某个值的 k 个位清零,会把恰好也用到这些位的**别的值**一起"删"掉(制造假阴性,这是 Bloom filter 唯一不能接受的事故)。要删除就换 **Counting Bloom filter**(每个 bit 换成小计数器:加值 +1、删值 -1,归零才算空)或 **Cuckoo filter**(天然支持删除,且空间效率更好,现在更常用)。
 
 **English 回答脚本:**
 > "Two layers. For capacity, Redis Cluster shards the set across nodes by hashing the value, so each lookup is still O(1). For latency, I'd keep a Bloom filter in each instance's local memory as a first-pass check. A Bloom filter never gives false negatives — when it says 'not present', we skip the network call entirely, which covers the vast majority of clean transactions. It does give occasional false positives, so on a hit we confirm against Redis. And it's tiny: a billion values at a one-percent false-positive rate is only about 1.2 gigabytes. If we needed deletions I'd use a cuckoo filter instead."
@@ -939,7 +993,15 @@ static void demo3() throws Exception {
 
 两个方案:
 - **(a) 记账(provenance)**:每个值入黑时记下"因哪个事件而黑",形成依赖关系,撤销时沿依赖回收。听着直观,实现上是引用计数 + 依赖图,边界情况多、容易错。
-- **(b) 事件溯源(event sourcing)**——从零解释:换一种世界观,**不把"当前状态"当真相,把"发生过的事件流水"当真相**;状态永远是"把流水从头算一遍"的结果。类比银行:银行不直接改你的余额,只追加交易流水,余额是流水加总出来的;冲正一笔错账 = 追加一条反向记录、重新加总。我们的 FraudDetector 恰好就是"输入事件流 → 输出状态"的确定性函数,所以撤销可以做成:**把那条 fraud_flag 标记作废,然后重放整个事件流,重建一份从未受它影响的黑名单**,替换旧的。绝对正确,不会漏删错删。代价:全量重放慢 → 定期存快照(snapshot),从最近快照开始放。
+- **(b) 事件溯源(event sourcing)**——从零解释:换一种世界观,**不把"当前状态"当真相,把"发生过的事件流水"当真相**;状态永远是"把流水从头算一遍"的结果。类比银行:银行不直接改你的余额,只追加交易流水,余额是流水加总出来的;冲正一笔错账 = 追加一条反向记录、重新加总。我们的 FraudDetector 恰好就是"输入事件流 → 输出状态"的确定性函数,所以撤销可以做成三步:
+
+1. **标记作废**:把那条错的 fraud_flag 标记为 void(不物理删除,只标记——事件流水本身永远只追加,这是 event sourcing 的铁律);
+2. **重放**:把事件流从头跑一遍(作废的事件跳过),重建一份从未受它影响的黑名单;
+3. **原子替换**:用新黑名单换下旧的。
+
+绝对正确,不会漏删、不会错删(被两条 flag 同时拉黑的值,重放后自然还在)。
+
+**代价与优化:**全量重放是 O(总事件数),慢。解决办法是**定期存快照(snapshot)**:重放时不从第一条事件开始,而是加载一份快照、只重放快照之后的事件,成本降到 O(增量事件数)。**一个容易踩的细节:必须选"早于被作废事件"的那次快照**——如果快照拍在那条错误 flag 之后,快照里已经含了它的污染,从那儿开始重放洗不掉。所以快照要保留多份,按时间挑。
 
 **English 回答脚本(推荐答 b):**
 > "Removing the flag's own values is trivial — the hard part is the contagion. Values that turned suspicious because of that flag went on to taint others, and after the fact you can't tell them apart from legitimately suspicious values. You could track provenance — record which event caused each value to be blacklisted — but that becomes a reference-counted dependency graph and it's easy to get wrong. The cleaner answer is event sourcing: the state is just a deterministic function of the event stream, so I'd void the bad fraud_flag and replay the stream to rebuild the state without its influence — guaranteed correct. To keep replay fast, snapshot periodically and replay from the last snapshot."
