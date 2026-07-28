@@ -311,6 +311,15 @@ new BigDecimal("0.1").add(new BigDecimal("0.2"))  // 0.3(精确)
 **English 回答脚本:**
 > "Structurally nothing changes — profiles are built incrementally line by line, so I'd swap the in-memory list for a buffered reader and stream the file. Memory is bounded by the number of distinct users, not the number of log lines. If even the profiles don't fit, that's a different problem — then I'd partition by user."
 
+**追问澄清一:缸太小时,能不能"把 HashMap 换成 Redis 或数据库"?**
+
+不能——这是最常见的错误直觉。中间聚合意味着**每条日志**都要对某个 userId 做一次"读出来 → 改一下 → 写回去":
+
+- **Redis**:几亿条日志 = 几亿次网络往返,QPS 和延迟先爆。Redis 适合放**最终结果**的热缓存,不适合当高频增量聚合的中间状态。
+- **PostgreSQL**:同理且更慢,每条日志触发一次数据库读写完全不现实。它适合存**最终物化结果**(见 Q7)。
+
+正确做法:**聚合永远发生在本地内存里**——数据按 userId 分区到多台机器,每台只在自己内存里维护自己那份用户的 HashMap,聚合完成后一次性把**结果**批量写回持久化存储。一句话:**中间状态留在内存,只有最终结果才落库。**
+
 ### Q6:每天几亿条日志、几千万用户,怎么算?
 
 面试官的英文问法:"How would you scale this to hundreds of millions of lines?"
@@ -332,14 +341,47 @@ HAVING COUNT(DISTINCT log_date)  >= 2
 **English 回答脚本:**
 > "This aggregation is embarrassingly parallel: hash-partition the logs by userId so all of a user's lines land on the same worker; each worker builds its profiles independently and the outputs just concatenate — no cross-worker merge, because the rule only depends on each user's own data. That's the standard MapReduce groupBy pattern. And if the data already sits in a warehouse, it's a four-line SQL with GROUP BY and HAVING on two COUNT DISTINCTs."
 
+**追问澄清二:分区(partitioning)≠ 负载均衡(Load Balancer)。**
+
+Load Balancer 的目标是"把请求摊匀",通常轮询分发——同一个用户的两条日志可能被发到不同机器,那样每台机器都只有半份数据,聚合就错了。数据分区的目标是**亲和性**:`hash(userId) % N` 保证同一个用户的所有日志**必然**落到同一台机器,摊匀只是副产品,"**同 key 同机**"才是本质。
+
+**追问澄清三:某台机器宕机了怎么办?**
+
+单点故障在生产不可接受,但这些细节**框架(Spark / Flink)已经封装好**,业务代码基本不用自己写,面试说出机制即可:
+
+- **数据有副本**:输入数据在存储层(HDFS / S3)本来就存多份,某台机器挂了,换一台重读它负责的那个分片即可;
+- **计算可恢复**:定期把中间状态刷盘(**checkpoint**,Flink 的招牌),挂了从上一个 checkpoint 接着算;Spark 则靠 **lineage**(记录"这份数据是从哪一步算出来的"),丢了哪个分片就按谱系从源头重算哪个分片。
+
+### Q6.5(关键澄清):生产链路全景 —— Spark 到底怎么用?Part 1 和 Part 2 各在哪跑?
+
+面试官的英文问法:"Walk me through how this would actually run in production."
+
+**最重要的一个纠偏:不是在原来的 Java 代码里把 HashMap 换成什么"MapReduce 类"。**我们写的 Java 代码是本地实现(数据装得进内存时完全够用);到了生产规模,聚合这件事**整个搬出去**,变成一个定时批处理任务,和线上服务彻底分开:
+
+```text
+日志 → S3(对象存储,先落盘)
+     → Spark / MapReduce 周期性 batch job(每小时或每天跑一次;分区、聚合、容错全由框架自动完成)
+     → 结果批量写入 PostgreSQL 物化表(每用户一行:活跃天数、loanTypes、min/max、established 标志)
+     → 线上实时 Java 服务查这张表,毫秒级算出 trust score
+```
+
+分工按 Part 拆开记:
+
+- **Part 1(聚合)= 离线批处理。**Spark job 周期性重算,结果物化进 Postgres。它**不是"一直在线的实时大 HashMap"**,而是定时跑完就退出的任务。
+- **Part 2(算分)= 在线实时服务。**普通 Java 服务,收到 (userId, loanType, amount) 就查物化表、按规则算分返回——完全不碰 Spark。**pending 交易绝不回写物化表**(题目 Clarification 的生产版)。
+- **要更新鲜的 profile 怎么办:**把 batch 换成 **Flink 流式任务**——日志一条条流进来、增量聚合、upsert 进 Postgres。架构从"定时全量"变"持续增量",查询侧完全不用改。
+
+**English 回答脚本:**
+> "In production I'd split this by part. Aggregation runs as a scheduled Spark batch job: logs land in S3, the job partitions by userId, builds each user's profile — distinct days, loan types, min and max — and bulk-writes a materialized table in Postgres. The online side is a plain Java service that computes the trust score by reading that table in milliseconds, and never writes pending data back. If we needed fresher profiles, I'd swap the batch job for a Flink streaming job doing incremental upserts — the serving path doesn't change."
+
 ### Q7:上 production 前改什么?(汇总清单)
 
 面试官的英文问法:"What would you change before shipping this?"
 
 金额(Q4)、规模(Q5/Q6)、配置化(Q2)前面已覆盖,剩下按三个桶:
 
-- **数据质量:**解析层单独成类(`LogParser`,可单测);malformed 行不打 stderr,进死信通道并出**脏行率**指标 + 告警(概念同 01 文档的 DLQ 一节)——脏行率突然升高 = 上游格式变了。
-- **服务化:**established 名单**物化**成表。"物化"= 把每次要现算的结果**提前算好、存成一张表**,放款决策路径毫秒级查表,而不是每次全量扫日志重算;每日定时任务刷新。这和 01 文档 Part 2 的 read-optimized view 是同一个思想。
+- **数据质量:**解析层单独成类(`LogParser`,可单测);malformed 行不打 stderr,进死信通道并出**脏行率**指标 + 告警(概念同 01 文档的 DLQ 一节)。**脏行率 = malformed 行数 ÷ 总行数**,是持续采集的监控指标——突然升高 = 上游日志格式八成变了,立刻排查。
+- **服务化:**established 名单 + 每用户的 loanTypes/min/max **物化**成 **PostgreSQL 表(注意:不是 Redis)**。"物化"= 把每次要现算的结果**提前算好、存成一张表**,放款决策路径毫秒级查表,而不是每次全量扫日志重算;定时任务(每日/每小时)刷新。**为什么选 Postgres 不选 Redis:**这张表需要持久化、批量刷新、被决策路径当真相源直接查——Redis 是内存缓存,擅长热数据,不适合当持久真相源;最多在 Postgres 前面再加一层 Redis 热缓存。这和 01 文档 Part 2 的 read-optimized view 是同一个思想。
 - **可调可实验:**阈值和评分权重进配置且**版本化**;做 **A/B 测试**(把用户分两组用不同权重,比较放款率/坏账率,用数据定参数)时只改配置不发版。
 - **可观测:**每日处理行数、脏行率、established 用户数及环比(突然掉一半 = 上游丢数据)。
 
