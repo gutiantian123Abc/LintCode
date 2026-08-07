@@ -292,7 +292,37 @@ addTask 时记 `insertionOrder` 递增序号,比较器第三键换成它。**只
 
 ### FU3 — "检测到环,能告诉我环在哪吗?"(findCycle,已实现)
 
-静默跑一遍 Kahn(普通队列即可),剩下的 `stuck` 集合 = 环上或被环卡住的任务。**父方向信息只有这里需要**:把 childrenMap 反转一次(O(V+E) 临时表)。提取环的引理:卡住的任务必有至少一个"未执行的父任务"(否则它早就 indegree 归零了),而那个父任务也必然卡着——所以**沿"卡着的父亲"指针走,永远走得下去,集合有限必绕回**;`visitedAt` 记首访位置,绕回处截取即得环。注意走的时候跳过已执行的父亲(反转表里有它们)。O(V + E)。
+**深度校准**:检测环是必会的一行(`order.size() != n`);**报出环成员**是加分题——讲清思路即满分,现场要求手写的概率很低。思路 = 三块已经会的东西:Kahn、一条两句话的引理、链表找环(LC 141/142)。
+
+**第一步:静默 Kahn,捞出淤积区。** 用普通 `ArrayDeque` 再跑一遍——只关心谁能跑,不关心顺序,这里用 PriorityQueue 是浪费。执行不了的任务留在 `stuck` 集合里。注意**淤积区 ≠ 环**:它 = 环成员 + 被环堵住的下游受害者。
+
+**第二步:引理(算法地基)。** *卡住的任务必有至少一个"也卡住"的父任务。* 证明两句:卡住 = indegree 没归零 = 有父任务从没执行;而"从没执行"恰好就是"卡住"的定义。
+
+**第三步:沿"卡住的父亲"走,走成链表找环。** 每个卡住的节点挑**任意一个**卡住的父亲当 next 指针(挑到就 `break`,每节点只留一个出口,图就退化成了链表)。引理保证这条路永远走得下去;集合有限,必撞上走过的节点——路径呈 ρ 形:
+
+```text
+deps: 1←{3}  2←{1}  3←{2}  4←{3}  5←{}     Kahn 只跑掉 5,stuck = {1,2,3,4}
+
+沿"卡住的父亲"走:  4 ──▶ 3 ──▶ 2 ──▶ 1
+                         ▲───────────┘    第 5 步撞回 3
+path = [4,3,2,1],visitedAt[3] = 1  →  subList(1, 4) = [3,2,1] = 环
+(受害者 4 是 ρ 的尾巴,被 subList 自然切掉)
+```
+
+`visitedAt` = HashSet 判重 + 顺手多记一个"首访下标"(为了最后切尾巴;嫌名字绕可改叫 `firstSeenIndex`,或用普通 Set 判重、绕回时 `path.indexOf` 现场找位置,多一次 O(n) 而已)。
+
+**四个被追问的精确点**:
+
+- 撞上的是"走过的某个节点",**不保证是出发点**——出发点若是受害者,永远不会被回访。所以循环条件必须是 `!visitedAt.containsKey(cur)` 而不是 `cur != start`(后者从受害者出发会死循环)。
+- **最多绕一圈**:任何节点第一次被重访的瞬间就停,整条路 ≤ |stuck| 步,这一段 O(V)。"在环里一圈圈绕"的画面属于 Floyd 快慢指针(O(1) 空间那版)——这里花 O(n) 记忆买"一圈封顶"。
+- **一次只报一条环**:掉进哪条报哪条(由父列表顺序决定;同图重复调用结果稳定)。这是工程上正确的合同——错误报告要的是一个具体反例,像编译器报第一个错;修掉再跑,自然看到下一条。
+- 追问"我要全部的环":涉环任务全集 = **SCC**(Tarjan/Kosaraju,O(V+E));字面枚举所有环路是**指数级**输出(Johnson 算法领域),真实系统里几乎永远是错需求。说到 SCC 即可收住。
+
+实现细节两笔:父方向信息只有这里需要——现场反转 childrenMap(O(V+E) 临时表,只在错误路径构建,不常驻);卡住节点 indegree > 0 必有父亲,`parentsOf.get(cur)` 不会 NPE。总复杂度 O(V + E)。
+
+**口播(20 秒)**:*"Run Kahn's once — whatever never executes is 'stuck': the cycle plus everything downstream of it. Every stuck task must have at least one stuck dependency, otherwise its indegree would have reached zero. So walking from any stuck task to a stuck parent can never stop — but the set is finite, so I must revisit some node, and that closes a concrete cycle. Same idea as finding a cycle in a linked list."*
+
+**记忆钩子**:跑一遍 Kahn 捞出淤积区;在淤积区里沿父指针走;走成链表找环。
 
 ### FU4 — "dependencies 有重复/自依赖怎么办?"
 
@@ -314,7 +344,58 @@ addTask 时记 `insertionOrder` 递增序号,比较器第三键换成它。**只
 
 ### FU6 — "多线程同时 addTask / execute?"
 
-最简正确:两个方法 `synchronized`(粗粒度,正确性优先)。进阶:execute 开头锁内拷贝 baseIndegree 快照(本实现天然如此),之后无锁计算——读写分离;再进阶:单线程 actor 收编所有变更(与 Score Server 同一思想)。先说 "correctness first, then measure"。
+**深度校准**:24 条面经中零条要求写线程安全代码。此题若出现,几乎必是收尾的**口头题**,考并发意识而非 j.u.c. 熟练度。层1 说满 + 被追问时补层2 一句 = 满分;层3 是谈资,不会被要求写。
+
+**必背两句(90% 场景到此为止)**:
+
+> *"I'd make both methods synchronized — simplest correct answer, correctness first. If profiling later shows execute blocking writers too long, I'd shrink the critical section: copy the maps under the lock and run the sort outside on the copy — but I'd measure before optimizing."*
+
+**层1 —— `synchronized` 两个方法**。为什么对:一把锁 → 同一时刻只有一个线程碰三张表 → 不存在交错。代价(实测,12 万任务星形图 + execute 热循环):execute 握锁跑完整个 O(V log V + E),且 `synchronized` 是**不公平锁**,刚放锁的热线程会连续插队 → 写者饥饿,单次 addTask 最大卡顿实测 **20.7 秒**。
+
+**层2 —— 快照锁**:锁内只拷三张表,出锁后对副本跑 Kahn。动作早就会——就是 `executeInternal` 里的 `new HashMap<>(baseIndegree)`,只是圈进锁里。唯一的新知识点:**三张表都要拷,且 childrenMap 要深拷到内层 List**(addTask 会往内层 append)。⚠️ 修正旧版"本实现天然如此"的说法:单线程下只拷 indegree 确实够;线程安全必须全快照——只拷两张表的反面教材单线程完全等价,并发压测第 34 次 execute 即抛 `ConcurrentModificationException`。效果:最大卡顿 20719 ms → **4 ms**。语义主动声明:plan 是取快照那一瞬的一致视图,之后加入的任务不在其中。
+
+**层3 —— actor(一句话谈资)**:单线程独占三张表,外界经 `BlockingQueue` 投递消息——线程封闭(thread confinement),无锁 by construction;与 Score Server 的单写线程同思想,也是 6.5 消耗式 Service 的天然宿主。
+
+三层可运行代码、并发压测(4 生产者 × 5000 任务,每份 plan 校验无重复/依赖闭合/依赖在前)、反面教材与延迟对比都在 `SchedulerConcurrency.java`。支撑重构一句话:**把 Kahn 写成"吃三张表"的纯函数,三层共用——锁策略与算法正交**。
+
+<details>
+<summary><b>展开三层核心代码(完整实现与压测见 SchedulerConcurrency.java)</b></summary>
+
+```java
+// 层1:临界区 = 整个方法
+public synchronized void addTask(int id, int prio, List<Integer> deps) { doAdd(...); }
+public synchronized List<Integer> execute() {
+    return runKahn(priorityMap, childrenMap, baseIndegree);   // 整个 Kahn 都握着锁
+}
+
+// 层2:临界区 = 三表拷贝;Kahn 在锁外对私有快照跑
+public List<Integer> execute() {
+    Map<Integer, Integer> prioSnap, indegSnap;
+    Map<Integer, List<Integer>> childSnap = new HashMap<>();
+    synchronized (lock) {
+        prioSnap  = new HashMap<>(priorityMap);
+        indegSnap = new HashMap<>(baseIndegree);
+        for (Map.Entry<Integer, List<Integer>> e : childrenMap.entrySet())
+            childSnap.put(e.getKey(), List.copyOf(e.getValue()));   // ★ 深到内层 List
+    }
+    return runKahn(prioSnap, childSnap, indegSnap);            // 锁外计算,不挡 addTask
+}
+
+// 层3:actor —— 三张表只被 worker 线程触碰,外界投递消息,异常经 future 传回
+while (true) {
+    Object msg = mailbox.take();
+    if (msg == POISON) return;
+    if (msg instanceof AddMsg m) {
+        try { doAdd(m.id(), m.prio(), m.deps()); m.ack().complete(null); }
+        catch (RuntimeException ex) { m.ack().completeExceptionally(ex); }
+    } else if (msg instanceof PlanMsg m) {
+        try { m.reply().complete(runKahn(priorityMap, childrenMap, baseIndegree)); }
+        catch (RuntimeException ex) { m.reply().completeExceptionally(ex); }
+    }
+}
+```
+
+</details>
 
 ### FU7 — "任务有时长,k 个 worker 并行?"
 
@@ -340,6 +421,101 @@ O(V log V + E)。**警告:不是 [LC 621](https://leetcode.com/problems/task-sch
 ### FU9 — "进程崩了怎么恢复?"
 
 执行日志(journal):每执行完一个任务追加落盘;重启重放——已执行集合恢复后按它重算 indegree,继续跑。前提任务幂等或有事务边界。一句带过,顺手连到 Score Server 的账本思想。
+
+## 6.5 Long-Running(消耗式)版本 —— FU1 的进阶形态(已实现:TaskSchedulerService.java)
+
+FU1 的拷贝式 executeNext 有个别扭之处:流一旦开始就禁止 addTask(快照定格了)。追问 *"What if it's a long-running service that keeps accepting tasks while running?"* 时,正确形态是**消耗式**——对象语义从"一次性规划器"变成"一台长期运转、边跑边收任务的调度机":
+
+| 维度 | 拷贝式(TaskSchedulerLC.executeNext) | **消耗式(TaskSchedulerService)** |
+|---|---|---|
+| 执行的含义 | 在快照上推进游标,定义表不动 | **真消耗**:任务进 `executedSet` 墓碑,从活动表出清,indegree 永久递减 |
+| 执行中 addTask | 禁止(快照不认后来者) | **天然合法**——这就是选它的理由 |
+| 依赖已执行的任务 | n/a(所有任务开局注册完) | **视为已满足,不计入 indegree**(靠墓碑区分"执行过"和"从不存在") |
+| 前向引用(依赖尚未注册的任务) | 允许,execute 时校验 | **不允许,addTask 当场报错**(服务语义下引用未来是错误) |
+| 环检测 | 执行尽头清点人数 | **环不可构造**(见下) |
+| 历史 | 一次性返回完整 order | `getExecutedOrder()` 单独查询(CQS) |
+
+**四个设计要点**(面试口述的顺序):
+
+1. **墓碑,不是物理删除**:执行完的任务必须留在 `executedSet` 里——否则后来的任务依赖它时,你无法区分"它执行过了(依赖满足)"和"它从不存在(该报错)"。删干净会把两种截然不同的情况混成一种。
+2. **环不可构造(写测试时撞见的涌现性质)**:因为依赖只能指向"已存在"的任务,每条边都指向注册时间的**过去**;而环需要至少一条指向**未来**的边——那条边在 addTask 时就被 "unknown task" 拒掉了。**禁前向引用 ⟹ 图恒为 DAG ⟹ 运行时环检测成为防御性死代码**(保留它,万一将来放开前向引用即激活)。把这条因果链讲出来,是这版最亮的一句话。
+3. **返回值遵循 CQS**:`executeNext()` 命令返回增量(刚执行的 taskId);历史用 `getExecutedOrder()` 查询单独拿。若面试官坚持一个调用两样都要:`record StepResult(int taskId, List<Integer> orderSoFar)`,orderSoFar 用 `Collections.unmodifiableList`(O(1) 活视图)并**说明**它是活的;每步防御性拷贝是 O(n)/步、全程 O(n²),别默默选它。还要问清"最新的 orderList"指**已执行历史**还是**剩余任务的预计顺序**——后者要跑规划器模拟,且会被未来的 addTask 作废。
+4. **为什么没有批量 `execute()` / `getAllOrderedList()`**:活动表随执行不断出清,批量排序只能看到"剩下的"——那个名字在撒谎,所以干脆不提供。诚实的拆法是把完整顺序**按时间切成两半**:过去 = `getExecutedOrder()`(只增历史,天然无副作用);未来 = `getPlannedOrder()`(对剩余活动表**拷贝后**跑 Kahn——"看一眼计划"不能顺手把任务消耗掉,消耗式想回答未来照样得 copy。可见 copy 不是拷贝版的怪癖,而是"查询与变更共存"的通用代价)。两者拼接 ≈ 拷贝版 `execute()` 的完整输出(无中途 addTask 时严格相等)。口播:*"History is recorded; the future is recomputed."*
+
+<details>
+<summary><b>展开消耗式核心代码(完整实现与 6 组测试见 TaskSchedulerService.java)</b></summary>
+
+```java
+public class TaskSchedulerService {
+
+    private final Map<Integer, Integer> priorityMap = new HashMap<>();       // 仅活动任务
+    private final Map<Integer, List<Integer>> childrenMap = new HashMap<>(); // 仅活动边
+    private final Map<Integer, Integer> indegree = new HashMap<>();          // 实时入度
+    private final PriorityQueue<Integer> ready = new PriorityQueue<>((a, b) -> {
+        int cmp = Integer.compare(priorityMap.get(b), priorityMap.get(a));
+        return cmp != 0 ? cmp : Integer.compare(a, b);
+    });
+    private final Set<Integer> executedSet = new HashSet<>();                // 墓碑
+    private final List<Integer> executedOrder = new ArrayList<>();           // 历史
+
+    public void addTask(int taskId, int priority, List<Integer> dependencies) {
+        if (priorityMap.containsKey(taskId) || executedSet.contains(taskId)) {
+            throw new IllegalArgumentException("duplicate taskId: " + taskId);  // 生命周期唯一
+        }
+        int indeg = 0;
+        for (int p : dependencies) {
+            if (executedSet.contains(p)) {
+                continue;                                  // ★ 依赖已执行 -> 视为满足
+            }
+            if (!priorityMap.containsKey(p)) {
+                throw new IllegalArgumentException("dependency on unknown task " + p);
+            }
+            childrenMap.computeIfAbsent(p, k -> new ArrayList<>()).add(taskId);
+            indeg++;
+        }
+        priorityMap.put(taskId, priority);
+        indegree.put(taskId, indeg);
+        if (indeg == 0) {
+            ready.add(taskId);                             // 来了就能跑的直接入堆
+        }
+    }
+
+    /** 命令:执行一个任务返回其 id;当前无任务返回 null(之后仍可继续喂) */
+    public Integer executeNext() {
+        if (ready.isEmpty()) {
+            if (!priorityMap.isEmpty()) {                  // 防御性死代码:现规则下环不可构造
+                throw new IllegalStateException("cycle detected among remaining tasks");
+            }
+            return null;
+        }
+        int task = ready.poll();
+        executedSet.add(task);                             // 消耗:进墓碑
+        executedOrder.add(task);
+        List<Integer> children = childrenMap.remove(task); // 出清活动边
+        priorityMap.remove(task);                          // poll 之后再删,比较器已用不到它
+        indegree.remove(task);
+        if (children != null) {
+            for (int v : children) {
+                if (indegree.merge(v, -1, Integer::sum) == 0) {
+                    ready.add(v);
+                }
+            }
+        }
+        return task;
+    }
+
+    /** 查询:执行历史(不可变快照;高频调用可换 unmodifiableList 活视图) */
+    public List<Integer> getExecutedOrder() {
+        return List.copyOf(executedOrder);
+    }
+}
+```
+
+</details>
+
+关键测试(用例 2):执行掉 2 之后动态 `addTask(5, 99, [2])`——依赖已执行的任务、立刻 ready、p99 直接插队下一个执行;全部跑完后还能继续喂任务再跑。这就是消耗式存在的意义。
+
+**命名备注(CQS)**:批量版 `execute()` 其实是纯查询,生产代码里更好的名字是 `getExecutionOrder()`,把 "execute" 留给真正改状态的流式方法——面试照题面的 API 写,但把这个观察说出来值十秒钟的 Design 分。
 
 ## 7. 坑清单(考场速查)
 
@@ -368,6 +544,31 @@ O(V log V + E)。**警告:不是 [LC 621](https://leetcode.com/problems/task-sch
 
 **接提示**:面试官任何插话 → *"Oh, that's a good point — let me incorporate that."* **冷面孔轮**:对方不接话就自己稳住节奏,清晰的独白也是协作展示。
 
-## 9. 30 秒总结陈词(背诵版)
+## 9. 全景闭环 —— 收尾叙事(⚠️ 只在最后三分钟或被问 production 时用,不是开场白)
+
+三个方法不是三道孤立的 API,而是调度系统完整生命周期的三个角色:
+
+```text
+        ┌──────────────────────────────────────────────┐
+        │                                              ▼
+   addTask(建模/写)  →  getExecutionOrder(规划/读)  →  executeNext(执行/命令)
+        ▲                    随时可问、反复可问              让现实前进一格
+        │                                              │
+        └────────── onTaskCompleted / onTaskFailed ◄───┘
+                    (反馈弧 —— 补上它,环才真正闭合)
+```
+
+- **addTask = 建模**:把世界的事实喂进模型(任务、优先级、依赖)
+- **execute = 规划**:对当前模型的**纯查询**(所以可重复调用、所以按 CQS 更该叫 `getExecutionOrder`)——规划是可再生的视图,不是一次性产物,每走一步都能基于最新状态重问
+- **executeNext = 执行**:真正改状态的命令;拷贝式(FU1)是快照游标,消耗式(6.5)是活模型
+- **反馈弧 = 缺的最后一段**:现有实现假设任务必然成功;补 `onTaskCompleted/onTaskFailed` 把结果写回模型——失败时重试或级联取消 dependents(接 FU8),循环才完整
+
+这四个部件与 Airflow/CI 系统一一对应:DAG 定义、scheduler、executor、task-state 回写。**使用时机**:① 代码写完的收尾陈词;② *"How would this run in production?"* / *"Anything you'd improve?"*;③ VP 轮聊系统理解。开场前 18 分钟属于代码,别在那时谈架构。
+
+英文版(收尾时说):
+
+> *"Stepping back — these three methods are the full lifecycle of a scheduler: addTask builds the model, the order query is a recomputable read model, executeNext advances reality one step. The piece I'd add for production is the feedback arc — completion and failure callbacks writing results back into the model, with retries or cascading cancellation. That's the same shape as Airflow or any CI system: DAG definition, scheduler, executor, state write-back."*
+
+## 9.1 30 秒总结陈词(背诵版)
 
 > "It's Kahn's topological sort — the standard Course Schedule II template — with the ready queue replaced by a max-heap. Indegree counting is the whole trick: a task enters the heap only when its count hits zero, so admission guarantees dependency-safety and the heap only orders safe tasks. That's also why there's no layered loop — a newly-unlocked high-priority task competes immediately. O(V log V + E) time, O(V + E) space. Cycles surface when the executed count falls short, and I can extract the actual cycle by inverting the graph and walking stuck tasks' unfinished parents."
