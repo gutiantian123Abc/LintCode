@@ -246,7 +246,63 @@ bAssign.put(b, id);
 unassignedB.remove(b);
 ```
 
-完整实现(含校验器与模糊测试)在 `ABCLogIds.java`,与主答案 2000 轮随机比对**输出逐字一致**——同一贪心,只换"问 successor"这一个动作的实现。
+与主答案 2000 轮随机比对**输出逐字一致**——同一贪心,只换"问 successor"这一个动作的实现。完整版如下(校验器在 FU6;测试与模糊脚本见 `ABCLogIds.java`):
+
+<details>
+<summary><b>展开 TreeSet 完整版代码(ABCLogIds.java)</b></summary>
+
+```java
+import java.util.*;
+
+public class ABCLogIds {
+
+    public static List<String> assign(List<String> tokens) {
+        if (tokens == null) {
+            throw new IllegalArgumentException("tokens must not be null");
+        }
+        Map<Integer, Integer> aPos = new HashMap<>();     // id -> A 的位置
+        TreeSet<Integer> unassignedB = new TreeSet<>();   // 未分配 B 的位置(有序,支持 higher)
+        Map<Integer, Integer> bAssign = new HashMap<>();  // B 的位置 -> 分配到的 id
+
+        for (int i = 0; i < tokens.size(); i++) {
+            String t = tokens.get(i);
+            char type = t.charAt(0);
+            if (type == 'A') {
+                aPos.put(Integer.parseInt(t.substring(1)), i);
+            } else if (type == 'B') {
+                unassignedB.add(i);
+            } else if (type == 'C') {
+                int id = Integer.parseInt(t.substring(1));
+                Integer a = aPos.get(id);
+                if (a == null) {
+                    throw new IllegalArgumentException("C" + id + " appears before A" + id);
+                }
+                Integer b = unassignedB.higher(a);        // A_id 之后最早的未分配 B
+                if (b == null) {                          // 输入保证有解时不会发生;防御性校验
+                    throw new IllegalArgumentException("no eligible B for id " + id);
+                }
+                bAssign.put(b, id);                       // b 必然 < i(集合里只有已扫过的位置)
+                unassignedB.remove(b);
+            } else {
+                throw new IllegalArgumentException("bad token: " + t);
+            }
+        }
+        if (!unassignedB.isEmpty()) {
+            throw new IllegalArgumentException("unassigned B remains: " + unassignedB);
+        }
+
+        List<String> out = new ArrayList<>(tokens);
+        for (Map.Entry<Integer, Integer> e : bAssign.entrySet()) {
+            out.set(e.getKey(), "B" + e.getValue());
+        }
+        return out;
+    }
+}
+```
+
+</details>
+
+对照读法:与主答案逐段对齐——`bPositions + used` 两张表合并成一个 `unassignedB`(树自己管有序和删除);"二分 + 跳墓碑"合并成 `higher(a)` 一行;结尾校验从"遍历 used"变成 `isEmpty()`。其余(aPos、bAssign、错误分支、回填)一个字不差。
 
 **口头升级台词(写完主答案后主动说)**:*"Appending keeps my list naturally sorted, so binary search works; the tombstone skip is the only part that can degrade. If I wanted a guaranteed O(n log n), I'd swap the list for a TreeSet — its `higher()` is exactly this successor query at O(log n) with real deletion."* 先展示用熟悉工具造出解,再精确点出标准工具和它解决的问题——比默写 API 更能体现判断力。
 
