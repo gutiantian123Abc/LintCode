@@ -178,6 +178,17 @@ public class ItalicParser {
 
 **全版最大的坑:快照必须拷贝。** `new Segment(text, new HashSet<>(open))`——如果直接存活栈引用,栈后续 push/pop 会把**所有已输出段**的样式一起改掉(测试用例 2 专门卡这个 aliasing bug)。样式即将变化(push 或 pop 之前)先把手头文本出段,是第二个关键时序。
 
+主循环是一个**检票闸机,四个出口**——每个 `<` 进来走且只走一条:
+
+| 出口 | 触发条件 | 代表什么 | 具体输入 | 动作 |
+|---|---|---|---|---|
+| **A** | `tag == null` | 假标签:未知名 `<x>`/`<I>`/`< i>`、残缺 `a<b` | `a<x>b` | 落到底部,`<` 当普通字符 append |
+| **B** | 合法**开**标签 | 进一层样式 | `plain<b>bold` | emit(旧样式结账)→ push → 跳过标签 |
+| **C** | 闭标签 且 匹配栈顶 | 关掉当前最内层 | 栈=[i,b] 时的 `</i>` | emit → pop → 跳过标签 |
+| **D** | 闭标签 但 空栈/不匹配 | 多余闭合 `a</i>b`、交错 `<b>1<i>2</b>` | 同左 | 两个 if 都不进 → 当文本(lenient)/ throw(strict) |
+
+出口 A/D 只 append **当前这一个 `<`** 然后 `i++`,假标签剩余字符在后续轮次作为普通字符自然流入文本——所以 `a<<i>b` 里第二个 `<` 能被重新识别为合法 `<i>`(输出 `a<{}` + `b{i}`),每个 `<` 都独立过一次闸机。
+
 <details>
 <summary><b>展开嵌套栈版核心代码(NestedTagParser.java;10 组测试含退化一致性 / 嵌套快照 / 交错嵌套 / 未知标签 / 残缺标签)</b></summary>
 
@@ -192,27 +203,32 @@ public static List<Segment> parse(String input) {
     int i = 0;
 
     while (i < input.length()) {
-        if (input.charAt(i) == '<') {
-            TagToken tag = tryReadTag(input, i);           // 不合法(未知名/残缺)返回 null
+        if (input.charAt(i) == '<') {                      // 只有 '<' 才可能开始一个标签
+            TagToken tag = tryReadTag(input, i);
+            // ── 出口A:tag == null(未知名/残缺)→ 跳过整个 if 块,落到底部当文本
             if (tag != null) {
                 if (!tag.closing) {
-                    emit(result, text, open);              // 样式即将变化:先出段
-                    open.push(tag.name);
-                    i = tag.end;
-                    continue;
+                    // ── 出口B:合法开标签,如 <b> ──
+                    emit(result, text, open);              // 攒的文本按"旧样式"先出段
+                    open.push(tag.name);                   // 进入新一层样式
+                    i = tag.end;                           // 跳过整个标签
+                    continue;                              // 别掉到 append
                 }
+                // 走到这必然是闭标签(开标签在上面已 continue)
                 if (!open.isEmpty() && open.peek().equals(tag.name)) {
-                    emit(result, text, open);              // 同上:pop 前先出段
+                    // ── 出口C:闭标签且正好关掉当前最内层 ──
+                    emit(result, text, open);
                     open.pop();
                     i = tag.end;
                     continue;
                 }
-                // 闭标签不匹配栈顶(交错嵌套/多余闭合):lenient 落到下面当文本
-                // strict 模式在此改为 throw new IllegalArgumentException(...)
+                // ── 出口D:闭标签但关不掉 ──
+                //   D1 空栈多余闭合 "a</i>b";D2 交错嵌套 "<b>1<i>2</b>"(栈顶 i 却关 b)
+                //   lenient:不 continue,落到底部当文本;strict:在此 throw
             }
         }
-        text.append(input.charAt(i));
-        i++;
+        text.append(input.charAt(i));                      // 出口A、出口D、普通字符在此汇合
+        i++;                                               // ★ 一次只 append 当前这一个字符
     }
     emit(result, text, open);                              // 收尾:未闭合 = 隐式闭合
     return result;
