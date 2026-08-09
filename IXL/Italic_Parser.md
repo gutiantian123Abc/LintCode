@@ -226,6 +226,37 @@ private static void emit(List<Segment> result, StringBuilder text, Deque<String>
     result.add(new Segment(text.toString(), new HashSet<>(open)));
     text.setLength(0);
 }
+
+// ---- 验票员:从 '<' 尝试读一个合法标签;不合法返回 null(整段当文本)----
+// "未知标签/残缺/大小写"三条约定全部免费来自这一个 null 合同,主循环零特判。
+private static final Set<String> KNOWN_TAGS = Set.of("i", "b", "u");
+
+private static class TagToken {
+    final String name;       // "i" / "b" / "u"
+    final boolean closing;   // true = </...>
+    final int end;           // '>' 的后一位,调用方用它跳过整个标签
+    TagToken(String name, boolean closing, int end) {
+        this.name = name; this.closing = closing; this.end = end;
+    }
+}
+
+private static TagToken tryReadTag(String s, int i) {
+    int j = i + 1;                                 // 跳过 '<'
+    boolean closing = false;
+    if (j < s.length() && s.charAt(j) == '/') {    // 紧跟 '/' → 闭标签
+        closing = true;
+        j++;
+    }
+    int k = s.indexOf('>', j);                     // 找 '>'
+    if (k == -1) {
+        return null;                               // 残缺(如串尾 "a<b")→ 当文本
+    }
+    String name = s.substring(j, k);
+    if (!KNOWN_TAGS.contains(name)) {
+        return null;                               // 未知名(<x>、< i>、<I>)→ 当文本
+    }
+    return new TagToken(name, closing, k + 1);
+}
 ```
 
 </details>
