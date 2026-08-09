@@ -193,6 +193,26 @@ public class ItalicParser {
 <summary><b>展开嵌套栈版核心代码(NestedTagParser.java;10 组测试含退化一致性 / 嵌套快照 / 交错嵌套 / 未知标签 / 残缺标签)</b></summary>
 
 ```java
+/** 值对象:文本 + 该段生效的样式集合。现场可用一行 record 平替:
+ *  record Segment(String text, Set<String> styles) {}  */
+static class Segment {
+    final String text;
+    final Set<String> styles;               // = emit 时刻栈的快照
+
+    Segment(String text, Set<String> styles) {
+        this.text = text;
+        this.styles = styles;
+    }
+
+    @Override public boolean equals(Object o) {
+        if (!(o instanceof Segment)) return false;
+        Segment s = (Segment) o;
+        return text.equals(s.text) && styles.equals(s.styles);
+    }
+    @Override public int hashCode() { return Objects.hash(text, styles); }
+    @Override public String toString() { return "\"" + text + "\"" + styles; }
+}
+
 public static List<Segment> parse(String input) {
     if (input == null) {
         throw new IllegalArgumentException("input must not be null");
