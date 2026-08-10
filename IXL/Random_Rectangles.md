@@ -3,6 +3,7 @@
 > **情报卡**:面经 #10 / #16,**VO 出现 2 次**,第二轮方向,押题榜第四位(与 Italic Parser 并列)。无 LC 原题。
 > **代码状态**:`RandomRectangles.java` JDK 21 编译通过;200 种子属性测试、同种子复现性、紧密布局重启、非法参数防御全绿。
 > **本题特殊性**:四题里唯一的**开放题**——没有唯一正解,**写代码占一半分,讨论 trade-off 占另一半**。评分的主轴是对话质量:先问清需求、从最简单方案写起、**主动说出它的缺陷和改进方向**。这是 IXL"互动为纲"最极致的一题。
+> **证据等级(读这份文档前必看)**:题面与出现频率是**面经实锤**;三工程点、测试打法、全部 follow-up 是按题目性质**推演的备弹**(面经未记载考官的具体要求)。实锤部分押重注;推演部分被换个方式问到时,现场重推,别背稿。
 
 ---
 
@@ -20,6 +21,12 @@
 | **从简单起步的判断力** | 正确开局:最笨但正确的拒绝采样,**边写边声明缺陷**;错误开局:上来聊高级算法却写不完 |
 | **工程习惯** | 三个必讲点:终止性、Random 注入、死胡同——每个都是"生产代码素养"的信号 |
 | **trade-off 对话** | 面试官会不断问"如果……呢?"——这题的 follow-up 不是加分项,是主体 |
+
+### 这题为什么没有 LC 式"标准答案"(结构上就没有)
+
+LC 式标准答案需要三个前提:输入输出合同精确定义、存在唯一正确(或可判定)的输出、存在公认最优解。这题一个都不给:题面故意留白(澄清本身是考题)、输出是随机布局(合法答案无穷多,只能验证性质)、三条路线各赢一个维度(拒绝采样赢简单、枚举赢终止保证、guillotine 赢速度,没有全能冠军)。所以它的"标准"长在**过程**上:澄清 → 最简正确起步 → 主动报缺陷 → 按追问换方案。
+
+但**零件是有 LC 标准的,开放的只是组装**:AABB 判定 = [LC 836 Rectangle Overlap](https://leetcode.com/problems/rectangle-overlap/) 原题公式,必须一字不差;拒绝采样 = [LC 470](https://leetcode.com/problems/implement-rand10-using-rand7/) / [LC 478](https://leetcode.com/problems/generate-random-point-in-a-circle/) 的核心模式("生成→检查→不合格重来")。**零件按标准背,组装按对话走。**
 
 ## 3. 开场 4 分钟:澄清问题(附建议默认值)
 
@@ -187,9 +194,34 @@ public class RandomRectangles {
 
 每次尝试先随机(或依次)选方向 `(w,h)` / `(h,w)`,其余逻辑不动。注意 `w == h` 时别重复计数方向。一句话的改动,考的是你听到需求后改动最小。
 
-### FU6 — "怎么测试随机代码?"(几乎必问)
+### FU6 — "怎么测试随机代码?"(几乎必问;注意本节的证据等级)
 
-三板斧:**注入 Random**(同种子可复现,测试确定性);**属性测试**(随机多轮,断言不变量:界内 + 两两不重叠,而非具体坐标);**边界用例**(恰好塞满的板、放不下的板、1×1 矩形)。本实现的测试就是这么写的:200 种子属性测试 + 同种子两次调用逐字节一致 + 紧密布局走重启版。
+先亮底:**属性测试不是面经记载的考纲,是推演的高分打法**。但"你怎么测它"这个问题本身无处可逃——随机代码写不出"硬编码期望输出"的测试,你必须回答"断言什么"。答案分**一个地基 + 两条正路**:
+
+**地基(不可少):注入 Random。** 不注入的话连固定种子都做不到,**任何**测试都写不出来。只记一件事就记它。
+
+**路一:固定种子的确定性测试(golden test)。** 注入后同种子输出完全确定,可以断言具体坐标。合法、直觉,但**脆**——实现里随机调用的顺序稍一变(先生成 y 再生成 x),所有断言全失效;且只覆盖那几个种子走过的路径。
+
+**路二:属性测试(不变量断言)。** 不管输出具体是什么,断言性质恒成立:全在界内 + 两两不重叠。健壮、覆盖广,代价是要想清楚"不变量是什么"。与 ABC 的校验器同源:**答案不唯一时,验证性质而不是比对结果**。
+
+实战 = 组合:固定种子保可复现 + 不变量保正确性 + 边界用例(恰好塞满、放不下、1×1)。本实现即如此:200 种子属性测试 + 同种子两次调用逐字节一致 + 紧密布局走重启版。台词:*"First I'd inject the Random so runs are reproducible. Then two kinds of tests: fixed-seed tests for reproducibility, and property tests asserting the invariants — everything in bounds, no two overlap — since exact positions aren't meaningful to assert."*
+
+### FU7 — "死胡同为什么不用回溯(backtracking),而用整体重启?"
+
+回溯是合法替代(N-Queens 同款直觉),没选它是三笔账:
+
+**第一笔:回溯的前提在这里不成立。** N-Queens 每层候选**有限、可枚举、可穷尽**(第 k 行就 N 列,换"下一个没试过的",试完即终止)。这里每层候选是整个 `(W−w+1)×(H−h+1)` 位置空间——"撤回后换个随机位置再试"没有"下一个"的概念:会重复、无进度、无终止保证。**随机版回溯依然是启发式,却背上了回溯的全部记账成本**(撤销栈、每层状态),两头不占。要严谨必须先离散化枚举——那是指数搜索树,bin-packing(NP-hard)的地界,只对很小的盘面可行。
+
+**第二笔:重启的经济学恰好压中失败模式。** 死胡同是**罕见事件**(正常填充率下多数轮一把成功)——回溯为治罕见病让每轮都付记账成本,重启平时零开销。且死胡同的元凶通常是**早期**摆放(占住正中的那个),回溯按 LIFO 撤销,把浅层组合试穿了才摸到真凶;**重启一步炸掉元凶**。数学干净:单轮成功率 p,失败概率被 (1−p)^R 指数压低,期望重启 1/p 次。代码 6 行 try/catch 对回溯的一整套机械,性价比一边倒。
+
+**第三笔:什么时候才轮到回溯/系统搜索。** 高填充率紧密盘面:p 趋近 0,1/p 爆炸,随机撞不进去了——离散化 + 回溯剪枝或装箱启发式登场。谱系:
+
+```text
+稀疏盘面 → 拒绝采样 + 整体重启(随机便宜,失败罕见)
+紧密盘面 → 离散枚举 + 回溯/装箱启发式(随机失效,必须系统搜索)
+```
+
+口播:*"Backtracking assumes each level has an enumerable, exhaustible candidate set — true for N-Queens' columns, not for thousands of random positions. Since dead-ends are rare and usually caused by early placements, a global restart hits the culprit directly with independent retries and exponentially-suppressed failure. If the board were tightly packed, I'd switch to discretized systematic search — that's bin-packing territory."*
 
 ## 10. 坑清单(考场速查)
 
@@ -223,3 +255,69 @@ public class RandomRectangles {
 > *"Rejection sampling: for each rectangle, generate a position in the always-in-bounds range, AABB-check against placed ones, bounded retries, defined failure. Random is injected so runs are reproducible and tests assert invariants — in-bounds and pairwise disjoint — never exact positions. Two known weaknesses I'd call out: per-rectangle retries can't undo earlier placements, so a global restart layer handles dead-ends; and it's uniform per placement, not over all layouts — if layout-level uniformity is required, that's a much harder sampling problem. For scale, a spatial grid makes each collision check amortized O(1)."*
 
 **记忆钩子**:笨办法开局 + 三工程点(有界重试 / 注入 Random / 死胡同重启)+ AABB 一行 + `nextInt` 的 +1 + 均匀性分档 + 属性测试。
+
+---
+
+## 附:Java Random 零基础速成(含 seed 深讲)
+
+### 心智模型:一盘由 seed 决定的磁带
+
+`Random` 是**伪随机**:内部一个状态数,每次调用按死公式算出下一个数并更新状态。它本质是**一条被 seed 完全决定的数列磁带**——每次 `nextInt(...)` 就是磁带前进一格读一个数。实测(输出原样):
+
+```text
+new Random(42) 第一台: 30 63 48 84 70 25     ← 同种子
+new Random(42) 第二台: 30 63 48 84 70 25     ← 序列一模一样
+new Random(7)  另一台: 36 64 85 44 80 54     ← 换种子换磁带
+```
+
+"看起来随机、实际可复现"不是缺陷,**是最有用的特性**。
+
+### 两种构造
+
+```java
+Random r = new Random();      // 系统挑难预测的种子:每次运行不同 → 生产用
+Random r = new Random(42);    // 固定种子:每次运行完全一样 → 测试/调试/复现用
+```
+
+### 常用 API + 三个食谱
+
+| 调用 | 产出 | 备注 |
+|---|---|---|
+| `nextInt(bound)` | `[0, bound)` 均匀整数 | **主力**;右开;`bound ≤ 0` 抛异常 |
+| `nextInt()` | 全体 int(含负数) | 几乎不用,别误拿 |
+| `nextDouble()` | `[0.0, 1.0)` | 连续场景 |
+| `nextBoolean()` / `nextGaussian()` | 均匀真假 / 标准正态 | 知道即可 |
+
+```java
+int x = a + rnd.nextInt(b - a + 1);            // 闭区间 [a, b](经典公式,-a 再 +1)
+T pick = list.get(rnd.nextInt(list.size()));   // 随机挑元素
+Collections.shuffle(list, rnd);                // 洗牌(传 rnd 保持可复现)
+```
+
+### 本题三处应用
+
+1. **`rnd.nextInt(W - w + 1)` 的 +1**:合法 x 是闭区间 `[0, W−w]`。W=10、w=5 → 合法值 {0..5} 共 **6** 个 = `nextInt(6)`(实测 1000 次恰好覆盖 [0,5])。写成 `nextInt(W−w)` 则矩形永远贴不上右边界——不崩溃的静默分布偏差,全题最阴的坑。
+2. **注入 = 可测试性的开关**:`Random` 当参数传,测试给 `new Random(42)`,生产给 `new Random()`。函数内部自己 `new` 的话,任何测试都写不出来。
+3. **seed 重放调试**:磁带决定一切 → 日志记 seed,出问题拿 seed 整局重放,一步不差。随机代码调试的标准姿势。
+
+### seed 到底是什么:环形轨道与上车站点
+
+生成器内部只是一条递推:`新状态 = (a × 旧状态 + c) mod m`(线性同余法,Java 即此类)。玩具参数 `(5×旧+3) mod 16` 实测:
+
+```text
+seed=7 : 6 1 8 11 10 5 12 15 14 9      ← 从 7 出发的脚印,永远这一条
+seed=7 : 6 1 8 11 10 5 12 15 14 9      ← 再来一遍,分毫不差
+seed=9 : 0 3 2 13 4 7 6 1 8 11         ← 走到 7 之后,汇入上面同一条路!
+```
+
+第三行是精髓:状态空间有限、每个状态的"下一步"唯一 → 整个空间被织成**固定的环形轨道**;不同 seed 只是**不同的上车站点**,走的是同一条轨道。"随机"只是公式把位搅得够乱,看不出规律而已——全程确定,这就是"伪"。
+
+真实的 `java.util.Random`:48 位状态,`新 = (0x5DEECE66D × 旧 + 0xB) mod 2⁴⁸`,`nextInt` 取高 32 位(高位更均匀)。两个细节:**seed 不是第一个输出**(seed=42 的第一个 `nextInt(100)` 是 30——seed 进门先被异或搅拌成初始状态,输出是状态的高位);**`new Random()` 的种子从哪来**——`System.nanoTime()` 混合一个原子递增计数器,连续两次 `new Random()` 也不同。"不给 seed" = "让库替你挑个难预测的上车点"。
+
+### 三条进阶常识(防追问,各一句)
+
+- **调用顺序敏感**:磁带顺序消费,交换"先 x 后 y"为"先 y 后 x",同 seed 输出全变——golden test 脆的根源,属性测试更稳的理由。
+- **多线程**:`Random` 线程安全但高并发慢(内部 CAS 竞争),并发用 `ThreadLocalRandom.current().nextInt(...)`。
+- **安全场景**:轨道是死的,少量输出可反推状态、预测未来——抽奖/token/密码必须 `SecureRandom`(熵来自操作系统,不可反推);反之模拟用 SecureRandom 是白慢。
+
+**记忆钩子**:seed 是起点不是输出;起点一定,全程皆定;测试钉住种子,生产放开种子;闭区间长度 = b − a + 1;磁带从门口递进来,别在函数里自己造。
