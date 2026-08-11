@@ -32,6 +32,7 @@ LC 式标准答案需要三个前提:输入输出合同精确定义、存在唯�
 
 | 要问的问题 | 建议默认 | 为什么要问 |
 |---|---|---|
+| **★ 随机本身是需求吗?**(每次调用要产出不同布局,还是任意一个合法布局即可?) | 是——题面写了 random,本题是**生成器题**不是求解题 | **一个问题决定写哪半边世界**:若 any valid 即可,整题塌缩成确定性装箱(FU8),Random/shuffle/重启全部拆除 |
 | 小矩形的尺寸和数量怎么给? | 参数传入 `List<int[]> sizes`(每项 w×h) | 决定函数签名 |
 | 允许旋转 90° 吗? | 不允许;允许则是 FU5 | 影响尝试逻辑 |
 | **"随机"要多严格?** | 每次放置在当前合法位置上均匀即可 | 这是本题最深的水(第 7 节),先确认档次 |
@@ -115,6 +116,10 @@ B:         ├────┤                B: ├────┤
 
 单个矩形的重试解决不了**上一步**的错误。解法:**外层整体重启**(推倒全部重来)——死胡同概率被重启次数指数压低。能主动指出这个缺陷的人,比写出完美代码的人少得多;这也是参考实现里 `placeWithRestarts` 存在的理由。
 
+**实测数字(10×5 放两个 5×5,万次试验)**:第一块的 6 个可能位置里 4 个是死胡同 → `place` 单跑成功率理论 1/3,实测 **33.3%**;套上 20 次重启,失败率 (2/3)²⁰ ≈ 0.03%,实测 **100.0%**。单跑失败时重试当前矩形五万次也没用(结构性无解),重启一步炸掉元凶——**内层重试治运气,外层重启治决策**。
+
+`placeWithRestarts` 里还有两个可讲的设计点:**① 机制与策略分层**——`place` 是机制(诚实试一局,有界重试,失败明确抛出),wrapper 是策略(要不要再来、来几局),分开后调用方按场景选(UI 要快速失败用裸 `place`,批任务要尽力成功用 restarts);**② 异常类型在做分诊**——wrapper 只 catch `IllegalStateException`(运气/死胡同病:换一局可能好),`IllegalArgumentException`(参数病:矩形比板大,重来一万次也没救)直接穿透上抛。**异常类型区分了"可重试的失败"和"不可重试的失败"**——HTTP 客户端对 503 重试、对 400 不重试的同款纪律。
+
 ## 6. 参考实现(已验证)
 
 <details>
@@ -193,11 +198,28 @@ public class RandomRectangles {
 
 边写边说的两个细节:`rnd.nextInt(W - w + 1)` 的 **+1**——合法起点是闭区间 `[0, W-w]`,`nextInt` 是右开的,漏 +1 矩形永远贴不到右/下边界(不崩溃、但分布错了,这种"静默偏差"比崩溃更阴);返回前重新拼 `[x,y]` 列表,内部的 `[x,y,w,h]` 工作表示不外泄。
 
-## 7. 深水区:"随机"到底什么意思(这题深度的天花板)
+## 7. 深水区:采样零基础 +"随机"到底什么意思(这题深度的天花板)
 
-拒绝采样对**单个矩形**是在"当前所有合法位置"上均匀的;但**整体布局**的分布不均匀——先放的矩形占据了选择权,后放的只能捡剩下的空间,某些布局形态会被系统性偏爱。如果面试官要的是"**所有合法布局等概率**",那是难得多的问题(要枚举全部布局,或 MCMC 采样),没人指望你现场解。
+### 7.1 采样与拒绝采样(零基础版)
 
-打法:**主动把这个区别说出来,然后确认档次**——*"Rejection sampling is uniform per placement, but not uniform over all layouts — earlier rectangles constrain later ones. Is per-placement uniformity acceptable, or do we need uniformity over layouts? The latter is a much harder sampling problem."* 说完这段,这题的深度你就见底了,面试官通常会说"per placement 就够"。
+**采样 = 让随机输出服从你想要的分布。** 手里的工具只有均匀骰子(`nextInt`),想要的却是"某个复杂集合上均匀的一个"——采样方法就是把骰子加工成目标分布的技术。**拒绝采样**只有三步:① 找一个包住合格区域的简单大区域(它能直接均匀抽);② 从大区域均匀抽一个;③ 合格收下,不合格**扔掉重抽**。收下的样本在合格区域内自动均匀——因为大区域里每点机会本来相同,"扔掉不合格"只是过滤,**不改变合格点之间的相对比例**。经典例:圆内均匀取点(LC 478)= 外接正方形里抽、落圆外扔。效率 = 合格面积 ÷ 大区域面积(圆/正方形 ≈ 78.5%)——**合格区越小扔得越多,这就是"板越满重试越多"的数学本质**。本题:大区域 = `[0,W−w]×[0,H−h]`,检查 = AABB,拒绝 = 重摇。
+
+### 7.2 每步均匀 ≠ 布局均匀(骨牌实验,数字实测)
+
+玩具盘面:1×5 的板依次放两个 1×2 骨牌(起点 0–3,起点差 <2 算重叠)。合法**最终布局**只有三种:`{0,2}`、`{0,3}`、`{1,3}`。每步都用"当时合法集合上均匀抽",逐路径算:
+
+| 第一步(各 1/4) | 第二步合法集 | 产出布局 |
+|---|---|---|
+| p1=0 | {2,3} 各 1/2 | {0,2} 得 1/8;{0,3} 得 1/8 |
+| p1=1 | 只有 {3} | {1,3} 得 **1/4** |
+| p1=2 | 只有 {0} | {0,2} 得 **1/4** |
+| p1=3 | {0,1} 各 1/2 | {0,3} 得 1/8;{1,3} 得 1/8 |
+
+汇总:`{0,2}` = **3/8**,`{0,3}` = **2/8**,`{1,3}` = **3/8**(百万次模拟实测 0.374 / 0.250 / 0.376,吻合)。**每一步都均匀,最终却不均匀**——因为**第二步的分母不一样**(有的第一步之后剩 2 个选择,有的剩 1 个),不同路径携带不同权重。这就是 "earlier rectangles constrain later ones" 的全部含义:**局部均匀叠不出全局均匀**。
+
+### 7.3 打法
+
+要"所有合法布局等概率"难得多:得枚举全部布局(装箱计数,组合爆炸)或上 **MCMC**(在布局间随机游走至收敛)——说出名词即到顶。考场动作:**主动把区别说出来,然后确认档次**——*"Rejection sampling is uniform per placement, but not uniform over all layouts — earlier rectangles constrain later ones. Is per-placement uniformity acceptable, or do we need uniformity over layouts? The latter is a much harder sampling problem."* 面试官通常答"per placement 就够"。
 
 ## 8. 复杂度(说出口的版本)
 
@@ -205,17 +227,35 @@ public class RandomRectangles {
 
 ## 9. Follow-up 全集(带详细答案)
 
-### FU1 — "怎么保证一定终止?"
+### FU1 — "怎么保证一定终止?"(抽签不放回)
 
-把随机重试换成**确定性枚举 + 随机顺序**:把所有候选位置离散成网格,shuffle 后依次试——试完没有就是真没有,**无死循环、无死胡同误报**(对单个矩形而言),代价是 O(候选数 × 已放数) 和一点均匀性偏差。这是"拒绝采样 ↔ 穷举"的经典权衡:**随机换速度,枚举换保证**。
+骰子的深层缺陷是**有放回**:可能反复试同一位置(浪费),且 `maxAttempts` 用尽时**开不出"不存在"的证明**——"有位置但运气差"和"真没位置"无法区分,可能误报失败。药方:**确定性枚举 + 随机顺序**——候选位置在整数格上有限(`(W−w+1)×(H−h+1)` 张签),全部列出、`shuffle`、按序试第一个合法的;**整表走完都不合法 = 证明了不存在**。每张签恰好试一次,死循环结构上不可能。代价:单矩形最坏 O(候选数 × 已放数) + 候选表内存——"贵但有底"换"快但没底":**随机换速度,枚举换保证**。
+
+三个精度点:**① 分布毫无损失**——整数坐标 + 真 shuffle 下,"随机排列取第一个合法"在合法集上**严格均匀**(对称性:合法候选谁排最前机会相同),与拒绝采样每步分布一模一样;偏差只在"连续坐标被离散化"或"随机起点线性扫描"这类偷工时出现。**② 布局层面的不均匀原样保留**(每步分布相同 ⟹ 布局分布相同)——FU1 改的是终止保证,不是分布。**③ 死胡同不消失,只是实锤化**:枚举证明的是"在已放矩形前提下没位置",前提本身可能错,外层 restart 照旧;区别是重启触发从"疑似"变"证明",不再有冤案。
+
+实战答案常是**混合**:先扔几十次飞镖(稀疏时快),不中再退回枚举(出证明兜底)。口播:*"Rejection sampling samples with replacement — it can never prove a spot doesn't exist. Enumerate the finite grid, shuffle, take the first legal: same per-placement distribution, but exhausting the list is a proof. In practice I'd try random darts first and fall back to enumeration."*
+
+**零件分工(一句话钉死)**:**名单管"不重复",洗牌管"随机"**——去重是"列名单"天然自带的(不洗牌按序走照样不重复、照样能证明不存在),shuffle 只负责打乱顺序。而 shuffle 有**双重身份**:对外满足"随机摆放"的产品需求(不洗则永远选最小 (x,y),矩形全堆左上角、布局千篇一律);对内给 restart 供应多样性(不洗则 place 变确定性函数,每轮重启重放**同一个**死胡同,重启形同虚设)。作用范围也要说准:"不重复"是**单矩形单轮**的承诺;跨矩形、跨重启的重新尝试两版都有且必要——盘面变了,同一位置的占/空答案也变了。
 
 ### FU2 — "有没有更快且必成功的放法?"
 
 **Guillotine(空闲区域切割)**:维护"空闲矩形列表",随机挑一块能容纳的,把矩形放进去(位置在块内随机),剩余空间切成两块放回列表。快、必成功(只要有块容得下)、无重试;代价是随机性有偏(切割顺序塑造了可能的布局形态)。游戏里的贴图打包(texture packing)就是这个思路。
 
-### FU3 — "一万个矩形怎么办?"
+### FU3 — "一万个矩形怎么办?"(空间网格 = HashMap 思想搬进二维)
 
-碰撞检测从 O(已放数) 线性扫描升级为**空间网格哈希**:板划成格子,每格记录覆盖它的矩形;新矩形只查自己覆盖的格子。均摊 O(1)/次。这是所有 2D 碰撞系统的标准第一课。
+`overlapsAny` 是全员点名:每次尝试 O(已放数),n 个矩形 O(n²)。浪费显而易见——碰撞是**邻居间的事**,左上角的新矩形不可能撞到右下角的旧矩形,但平铺 List 不知道谁是邻居。
+
+**空间网格(spatial grid)**:板划成边长 cellSize 的格子,维护 `格子 → 覆盖它的矩形列表`;新矩形用整数除法算出自己覆盖哪些格子(`x/cellSize` 到 `(x+w)/cellSize`,y 同理),**只跟这几格里登记的矩形做 AABB**,放置成功后把自己登记进去。具体感受:1000×1000 板、cellSize=50,一个 40×30 的矩形只占 2 个格子——就算全板已放一万个,也只查这两格里的几个。
+
+```java
+Map<Long, List<int[]>> grid = new HashMap<>();
+long key(int cx, int cy) { return ((long) cx << 32) | cy; }   // 格坐标拼成桶号
+// 查询与登记:遍历矩形覆盖的 (cx,cy) 范围,访问对应桶
+```
+
+**为什么均摊 O(1)**:cellSize 选得和典型矩形尺寸相当时,每个矩形只覆盖 O(1) 个格、每格只装得下 O(1) 个互不重叠的矩形 → 候选集平均常数个。说"均摊"是诚实:格子太大退化回线性,太小则登记成本上升——**经验法则 cellSize ≈ 典型矩形边长**。小细节:横跨多格的候选可能被查两次,用 Set 去重或干脆接受(AABB 一行很便宜)。
+
+**点破本质**:*"It's exactly the HashMap bucket idea — the cell coordinate is the key."* HashMap 把"n 里线性找"变"算桶号看桶内几个",网格把"跟 n 个比"变"算格号比格内几个"。谱系一句防深挖:均匀网格是最简空间索引;尺寸悬殊用 quadtree(按需细分),数据库/地图用 R-tree、geohash;游戏引擎碰撞粗筛(broad-phase)就是这套。
 
 ### FU4 — "支持删除矩形、空间复用?"
 
@@ -253,6 +293,35 @@ public class RandomRectangles {
 ```
 
 口播:*"Backtracking assumes each level has an enumerable, exhaustible candidate set — true for N-Queens' columns, not for thousands of random positions. Since dead-ends are rare and usually caused by early placements, a global restart hits the culprit directly with independent retries and exponentially-suppressed failure. If the board were tightly packed, I'd switch to discretized systematic search — that's bin-packing territory."*
+
+### FU8 — "如果不需要随机(any valid placement)呢?"(整题塌缩)
+
+本题是**生成器题**(合法布局千千万,每次随机抽一个);把 random 拿掉就变**求解题**(给一个合法布局即可),整套随机机器全部拆除,答案是**确定性 first-fit(贴瓷砖)**:
+
+```java
+for (int[] s : sizes) {                          // 逐个矩形
+    boolean ok = false;
+    for (int y = 0; y <= H - s[1] && !ok; y++)   // 行优先扫描
+        for (int x = 0; x <= W - s[0] && !ok; x++)
+            if (!overlapsAny(placed, x, y, s[0], s[1])) {
+                placed.add(new int[]{x, y, s[0], s[1]});
+                ok = true;                        // 第一个能放的就放,绝不挑
+            }
+    if (!ok) throw new IllegalStateException("no spot");
+}
+```
+
+没有 Random、shuffle、maxAttempts、restarts;同输入永远同布局,矩形从左上角码起。两个补充:first-fit 快但**不完备**(装箱 NP-hard,贪心可能在有解时失败)——要完备就上**回溯**(每矩形记住名单试到第几号,无处可放退回上一个换下一候选,N-Queens 结构原样平移;FU7 那句"回溯是可枚举世界的工具"在此应验);先把矩形**按面积降序排序**再放(First-Fit Decreasing)成功率大增,一行 sort 的事。
+
+| | random 版(原题) | any valid 版 |
+|---|---|---|
+| 随机源 | Random + shuffle | **无** |
+| 找位置 | 骰子猜 / 名单洗牌 | 固定顺序扫描,第一个能放就放 |
+| 死胡同对策 | **整体重启**(价值来自多样性) | **回溯**(价值来自可穷尽) |
+| 多次调用 | 每次不同布局 | 永远同一布局 |
+| 失败含义 | 概率性放弃 / 枚举后证明 | 回溯搜完 = 确凿无解 |
+
+口播:*"If any valid placement is acceptable, this stops being a sampling problem — deterministic first-fit, no randomness at all; sort by size descending to help it, add backtracking if completeness is required. The whole random machinery only exists because randomness was a requirement."* 这正是澄清清单第一问的价值:**一个问题决定写哪半边世界**。
 
 ## 10. 坑清单(考场速查)
 
@@ -344,6 +413,28 @@ seed=9 : 0 3 2 13 4 7 6 1 8 11         ← 走到 7 之后,汇入上面同一条
 第三行是精髓:状态空间有限、每个状态的"下一步"唯一 → 整个空间被织成**固定的环形轨道**;不同 seed 只是**不同的上车站点**,走的是同一条轨道。"随机"只是公式把位搅得够乱,看不出规律而已——全程确定,这就是"伪"。
 
 真实的 `java.util.Random`:48 位状态,`新 = (0x5DEECE66D × 旧 + 0xB) mod 2⁴⁸`,`nextInt` 取高 32 位(高位更均匀)。两个细节:**seed 不是第一个输出**(seed=42 的第一个 `nextInt(100)` 是 30——seed 进门先被异或搅拌成初始状态,输出是状态的高位);**`new Random()` 的种子从哪来**——`System.nanoTime()` 混合一个原子递增计数器,连续两次 `new Random()` 也不同。"不给 seed" = "让库替你挑个难预测的上车点"。
+
+### 磁头规则:seed 定磁带,对象是磁头,只进不退
+
+"同 seed 重跑 place 结果一样"要看 Random 怎么给,实测(100×100 放两个 10×10):
+
+```text
+每次新建 new Random(42) 跑 place:  (78,33)(48,38) / (78,33)(48,38) / (78,33)(48,38)  ← 三次逐字相同
+同一个 Random(42) 对象连跑三次:    (78,33)(48,38) / (26,4)(78,3) / (55,80)(52,39)    ← 只有第一次相同
+```
+
+规则:`new Random(42)` = 把磁头放回 42 号磁带开头;每次 `nextInt` 磁头前进一格,**永不倒带**。同 seed **重新新建** → 整条抽数序列逐格重放,执行路径(每次撞车、每次重试)分毫不差;同一**对象**连用 → 第二次从磁带中间继续,全不同。
+
+漂亮的闭环:**`placeWithRestarts` 能起作用,恰恰依赖"不倒带"**——内部每轮重启用同一个 rnd,磁带继续走,每局抽到不同布局才逃得出死胡同;若每局都 `new Random(seed)` 倒带,每次重启会一模一样地掉进同一个死胡同,重启一万次也是死。而从外面看 `placeWithRestarts(..., new Random(seed), ...)` 整体又可复现(重放的是"整串重启尝试")。**局部靠前进制造多样性,整体靠回带保住复现性。**
+
+### Collections.shuffle 速成
+
+**原地把列表洗成均匀随机顺序**(元素不增不减,只乱序;返回 void)。要点四条:
+
+1. **必须传可变列表**:对 `List.of(...)`(不可变)直接洗抛 UnsupportedOperationException,先 `new ArrayList<>(...)` 包一层。
+2. **双参版 `shuffle(list, rnd)` 才保可复现**:单参版内部自己 new Random,种子失控;传 rnd 进去,洗牌消费的是你那盘磁带——"Random 从门口递进来"同一条纪律。
+3. **内部是 Fisher–Yates**,O(n) 且对全部 n! 种排列严格等概率:`for (i = n−1; i ≥ 1; i--) swap(i, rnd.nextInt(i + 1))`——注意随机范围是 `[0, i]` 不是 `[0, n)`。
+4. **两种经典的错误洗牌**(被问能答):每次 `nextInt(n)` 全范围交换 → 路径数 nⁿ 除不尽 n!,必然有偏;用随机比较器排序洗牌 → 违反比较器契约,可能抛异常且分布错。**Java 里自己写洗牌几乎总是错误的开始,用现成的 `Collections.shuffle`。**
 
 ### 三条进阶常识(防追问,各一句)
 
