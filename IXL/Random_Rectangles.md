@@ -299,17 +299,55 @@ long key(int cx, int cy) { return ((long) cx << 32) | cy; }   // 格坐标拼成
 
 每次尝试先随机(或依次)选方向 `(w,h)` / `(h,w)`,其余逻辑不动。注意 `w == h` 时别重复计数方向。一句话的改动,考的是你听到需求后改动最小。
 
-### FU6 — "怎么测试随机代码?"(几乎必问;注意本节的证据等级)
+### FU6 — "怎么测试随机代码?"(几乎必问;证据等级:属性测试是推演打法,非面经考纲——但"怎么测"这个问题本身无处可逃)
 
-先亮底:**属性测试不是面经记载的考纲,是推演的高分打法**。但"你怎么测它"这个问题本身无处可逃——随机代码写不出"硬编码期望输出"的测试,你必须回答"断言什么"。答案分**一个地基 + 两条正路**:
+**普通测试的套路为什么失效**:普通测试 = 给输入 → 拿输出 → **和标准答案比对**(`assertEquals(List.of(2,1,3,4), scheduler.execute())`)。随机代码每次输出都不一样,**"标准答案"根本写不出来**——第一步就卡死。下面的全部技术,就是绕过"没有标准答案"的两条路加一个地基。
 
-**地基(不可少):注入 Random。** 不注入的话连固定种子都做不到,**任何**测试都写不出来。只记一件事就记它。
+**地基:把 Random 递进来(注入)——让测试能抓住方向盘**
 
-**路一:固定种子的确定性测试(golden test)。** 注入后同种子输出完全确定,可以断言具体坐标。合法、直觉,但**脆**——实现里随机调用的顺序稍一变(先生成 y 再生成 x),所有断言全失效;且只覆盖那几个种子走过的路径。
+```java
+// 坏:内部自己造随机 → 每次运行都不同 → 任何测试都写不了
+public static List<int[]> place(int W, int H, List<int[]> sizes) {
+    Random rnd = new Random();               // ← 测试对它无能为力
+}
+// 好:Random 当参数 → 测试给固定 seed → 输出就固定了
+public static List<int[]> place(int W, int H, List<int[]> sizes, Random rnd, ...)
+```
 
-**路二:属性测试(不变量断言)。** 不管输出具体是什么,断言性质恒成立:全在界内 + 两两不重叠。健壮、覆盖广,代价是要想清楚"不变量是什么"。与 ABC 的校验器同源:**答案不唯一时,验证性质而不是比对结果**。
+**路一:固定种子(录像回放式)**
 
-实战 = 组合:固定种子保可复现 + 不变量保正确性 + 边界用例(恰好塞满、放不下、1×1)。本实现即如此:200 种子属性测试 + 同种子两次调用逐字节一致 + 紧密布局走重启版。台词:*"First I'd inject the Random so runs are reproducible. Then two kinds of tests: fixed-seed tests for reproducibility, and property tests asserting the invariants — everything in bounds, no two overlap — since exact positions aren't meaningful to assert."*
+```java
+List<int[]> pos = place(100, 100, sizes, new Random(42), 50);
+assertEquals(List.of(new int[]{78, 33}, new int[]{48, 38}), pos);   // 值是抄实测的
+```
+
+测的是"**程序行为没有变**"——回放对不上就报警,防止改代码改出意外变化。弱点:只看过这一条轨道;实现细节一变(先抽 y 后抽 x),录像全部作废。
+
+**路二:不查答案,查"规矩"(属性测试)**
+
+具体输出没法预言,但**任何输出都必须遵守的规矩**是知道的:①每个矩形完整落在板内;②任何两个不重叠。测试 = 换很多 seed 跑很多次,每次只查规矩。像**考驾照**:考官没法预知你开哪条路线(随机),但"不闯红灯、不压线"任何路线都必须守——**查的是规矩,不是路线**。
+
+```java
+for (int seed = 0; seed < 200; seed++) {
+    List<int[]> pos = place(100, 100, sizes, new Random(seed), 50);
+    // 规矩①:0 ≤ x 且 x + w ≤ W(y 同理)   规矩②:两两做 AABB,全部不重叠
+}
+```
+
+**抓捕实录(实测,`PropTestDemo.java`)**:埋一个真实 bug——查重叠时只跟"最后一个"已放矩形比(漏查更早的)。结果:正确版 **200 个 seed 全过**;bug 版 **seed=3 当场被抓**,罪证具体到矩形坐标(`[52,55,30,30]` 与 `[63,67,30,30]` 重叠——第 3 块只跟第 2 块比过,没看第 1 块)。注意测试**从头到尾不知道"正确输出该是什么"**,只靠两条规矩就把逻辑 bug 揪了出来。属性测试的本质一句话:**不知道"对"长什么样,但知道"错"长什么样。**
+
+**小抄 + 台词**
+
+```text
+地基:Random 当参数传(注入)   → 没有它,两条路都不存在
+路一:固定 seed + 抄答案断言    → 录像回放,防意外变化
+路二:多个 seed + 只查规矩      → 驾照考官,抓逻辑 bug
+实战:三个一起用(再加边界用例:恰好塞满、放不下、1×1)
+```
+
+> *"I'd pass the Random in so tests control the seed. Then two kinds of tests: one fixed-seed test that pins down the exact output — catches unintended changes; and a loop over many seeds checking the rules every layout must obey — in bounds, no overlaps. The rules-based tests are the powerful ones: they don't need to know the right answer, only what a wrong answer looks like."*
+
+**呼应**:你在 ABC Log IDs 早就用过路二——校验器(查每个 id 的 A<B<C)就是同一招:**答案不唯一,查规矩不查答案**。IXL 两道题共用这一个思想,面试里点破这层呼应,深度立刻不一样。
 
 ### FU7 — "死胡同为什么不用回溯(backtracking),而用整体重启?"
 
