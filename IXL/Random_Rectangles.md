@@ -231,6 +231,40 @@ public class RandomRectangles {
 
 骰子的深层缺陷是**有放回**:可能反复试同一位置(浪费),且 `maxAttempts` 用尽时**开不出"不存在"的证明**——"有位置但运气差"和"真没位置"无法区分,可能误报失败。药方:**确定性枚举 + 随机顺序**——候选位置在整数格上有限(`(W−w+1)×(H−h+1)` 张签),全部列出、`shuffle`、按序试第一个合法的;**整表走完都不合法 = 证明了不存在**。每张签恰好试一次,死循环结构上不可能。代价:单矩形最坏 O(候选数 × 已放数) + 候选表内存——"贵但有底"换"快但没底":**随机换速度,枚举换保证**。
 
+与原版的差别只在"给一个矩形找位置"这一段循环,其余(参数校验、AABB、返回、restart 用法)一字不变:
+
+```java
+// ── 原版(骰子):随机猜,可能重复,需要人为上限 ──
+for (int attempt = 0; attempt < maxAttemptsPerRect; attempt++) {
+    int x = rnd.nextInt(W - w + 1);
+    int y = rnd.nextInt(H - h + 1);
+    if (!overlapsAny(placed, x, y, w, h)) { placed.add(new int[]{x, y, w, h}); ok = true; break; }
+}
+// 失败时只知道"猜了 50 次没中"——有没有位置?不知道。
+
+// ── FU1 版(名单 + 洗牌):注意 maxAttemptsPerRect 参数直接消失 ──
+List<int[]> candidates = new ArrayList<>();
+for (int x = 0; x <= W - w; x++) {              // ① 列名单:所有可能位置,一个不漏
+    for (int y = 0; y <= H - h; y++) {
+        candidates.add(new int[]{x, y});
+    }
+}
+Collections.shuffle(candidates, rnd);           // ② 打乱顺序(随机性只来自这里)
+
+boolean ok = false;
+for (int[] c : candidates) {                    // ③ 挨个试,每个位置恰好试一次
+    if (!overlapsAny(placed, c[0], c[1], w, h)) {
+        placed.add(new int[]{c[0], c[1], w, h});
+        ok = true;
+        break;
+    }
+}
+if (!ok) throw new IllegalStateException("no legal position EXISTS");
+// ↑ 失败时知道的是"全部位置都亲自试过了,确定没有"。
+```
+
+三处肉眼可见的差别:`maxAttemptsPerRect` **参数消失**(名单有限,循环天然会停);两行 `nextInt` 变成**列名单 + 洗一次牌**;失败信息从"50 次没猜中"升级为"**确定不存在**"。完整可跑的对比实现与实测(骰子 7.6% vs 名单 18.0% 打满理论上限)在 `EnumDemo.java`。
+
 三个精度点:**① 分布毫无损失**——整数坐标 + 真 shuffle 下,"随机排列取第一个合法"在合法集上**严格均匀**(对称性:合法候选谁排最前机会相同),与拒绝采样每步分布一模一样;偏差只在"连续坐标被离散化"或"随机起点线性扫描"这类偷工时出现。**② 布局层面的不均匀原样保留**(每步分布相同 ⟹ 布局分布相同)——FU1 改的是终止保证,不是分布。**③ 死胡同不消失,只是实锤化**:枚举证明的是"在已放矩形前提下没位置",前提本身可能错,外层 restart 照旧;区别是重启触发从"疑似"变"证明",不再有冤案。
 
 实战答案常是**混合**:先扔几十次飞镖(稀疏时快),不中再退回枚举(出证明兜底)。口播:*"Rejection sampling samples with replacement — it can never prove a spot doesn't exist. Enumerate the finite grid, shuffle, take the first legal: same per-placement distribution, but exhausting the list is a proof. In practice I'd try random darts first and fall back to enumeration."*
