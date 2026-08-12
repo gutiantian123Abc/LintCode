@@ -1,7 +1,7 @@
 # IXL VO — 读 Doc 题(Search Bar 渲染)终极版(Java · 流程题的打法)
 
 > **情报卡**:面经 #12,VO 后段轮次方向。**全题池里证据等级最特殊的一题**:真实考题的规则写在**现场发给你的 doc** 里,本文题面是按面经线索("有一些 rules,尽可能显示最多的搜索结果")做的**合理重构**——现场规则几乎必然和这里不同。
-> **因此复习目标不是记住规则,是练熟"读需求的六步流程"**——规则换成什么样都不慌。本文题面只是陪练沙袋。
+> **因此复习目标不是记住规则,是练熟"读需求的六步流程"**——规则换成什么样都不慌。本文题面只是练习用的例题,现场一切以发给你的 doc 为准。
 > **代码状态**:`SearchBarRenderer.java` JDK 21 编译通过,逐规则用例全绿。
 
 ---
@@ -44,29 +44,29 @@
 
 ## 4. 解法推导(讲给面试官听的顺序)
 
-**核心洞察:组头是"税"。** 多展示一个组要先交 1 行的税,所以"多开组"不一定划算——这正是 R6 的精髓例子(逐规则测试第 2 条):
+**核心观察:每个 group header 自己占 1 行(R2)。** 总共只有 `maxRows` 行;选了 k 个 group,就有 k 行被 header 用掉,**留给 results 的只剩 `maxRows − k` 行**。所以多显示一个 group 不一定划算——多一个 header 就少一行 result。R6 的关键例子(逐规则测试第 2 条)就是它:
 
 ```text
-Math 有 3 条,ELA 有 2 条,maxRows = 4:
-  开两组:2 行组头 + 2 条结果 → 只展示 2 条
-  只开 Math:1 行组头 + 3 条结果 → 展示 3 条 ✓
-丢掉整个 ELA,反而多显示了结果。
+Math 有 3 条 results,ELA 有 2 条,maxRows = 4:
+  选两个 group:2 行 header + 2 行 results = 4 行 → 只显示 2 条 results
+  只选 Math:  1 行 header + 3 行 results = 4 行 → 显示 3 条 results ✓
+丢掉整个 ELA,反而多显示了 results —— 因为省下了 1 行 header。
 ```
 
-**算法:枚举组数 k。** 选 k 个组 → 组头交 k 行税,结果预算 = `maxRows − k`,且必须 ≥ k(R4 每组保底 1)。对每个合法 k:取**结果数最多的 k 个组**(并列取首现早的),能展示数 = `min(maxRows − k, 这 k 组的结果总数)`。k 从小到大枚举,**严格更优才更新**——并列时自动保留更小的 k,R6 的次级优先免费实现。
+**算法:枚举 group 数 k。** 选 k 个 group → header 占 k 行,results 可用行数 = `maxRows − k`,且必须 ≥ k(R4:每个 group 至少 1 条 result)。对每个合法的 k:取 **results 最多的 k 个 group**(并列取 first appearance 早的),能显示的 results 数 = `min(maxRows − k, 这 k 个 group 的 results 总数)`。k 从小到大枚举,**严格更优才更新**——并列时自动保留更小的 k,R6 的 "ties → fewer groups" 免费实现。
 
-**配额分配:保底 + 补位。** 定了组集合后,每组先拿 1 条保底(该组最相关的那条,R4);剩余名额按**全局相关性顺序**补位——保底保证小组不被大组挤死,补位保证剩余名额给最相关的结果。
+**配额分配:保底 + 补位。** 定了 group 集合后,每个 group 先拿 1 条保底名额(该组最相关的那条,满足 R4);剩余名额按**全局 relevance 顺序**补位——保底保证小 group 不被大 group 挤掉,补位保证剩余行给最相关的 results。
 
 ## 5. 手走精髓例子
 
 `maxRows = 4`,results 依相关性:`M1(Math) M2(Math) E1(ELA) M3(Math) E2(ELA)`:
 
-| k | 组头税 | 结果预算 | 取结果最多的 k 组 | 能展示 | 判定 |
+| k | header 占行 | results 可用行 | 取 results 最多的 k 个 group | 能显示 | 判定 |
 |---|---|---|---|---|---|
 | 1 | 1 | 3 | {Math}(3 条) | min(3, 3) = **3** | 最优 ✓ |
-| 2 | 2 | 2 | {Math, ELA}(5 条) | min(2, 5) = 2 | 不如 k=1 |
+| 2 | 2 | 2 | {Math, ELA}(共 5 条) | min(2, 5) = 2 | 不如 k=1 |
 
-输出:`[Math]` `M1` `M2` `M3` —— ELA 整组被诚实地牺牲。
+输出:`[Math]` `M1` `M2` `M3` —— ELA 整个 group 不显示,换来多显示 1 条 result。
 
 ## 6. 参考实现(已验证;注意注释里的规则号——第 5 步流程的落地)
 
@@ -178,7 +178,7 @@ public class SearchBarRenderer {
 | 用例 | 验收的规则 |
 |---|---|
 | 预算充足全展示,组序/组内序正确 | R1 R2 R3 |
-| `maxRows=4` 丢 ELA 反而多显示 | **R6 精髓**(组头是税) |
+| `maxRows=4` 丢 ELA 反而多显示 | **R6 关键**(header 占行导致的取舍) |
 | `maxRows=6` 选两组,保底 + 补位 | R4 + 配额 |
 | 小组首条出现很晚仍拿到保底 | R4 |
 | `maxRows<2` / 空 results → 空输出 | R5 边界 |
@@ -216,7 +216,7 @@ public class SearchBarRenderer {
 | `maxRows = 1` 或 0 | 放不下"头+1 结果"仍硬渲染 | 开头短路返回空(R4+R5 推论,主动声明) |
 | 选大组并列时随便选 | 违反 R6"首现早优先" | 比较器第二键 = appearance |
 | 注释无规则号 | 面试官对照 doc 检查成本高,流程分丢失 | 每个代码块标 `// R几` |
-| 现场规则和练习不同就慌 | 白练 | **练的是六步,不是这套规则**——规则是沙袋 |
+| 现场规则和练习不同就慌 | 白练 | **练的是六步流程,不是这套具体规则**——现场规则不同是预期之内 |
 
 ## 11. 40 分钟考场节奏 + 互动台词(这题通常给更长时间)
 
@@ -235,4 +235,4 @@ public class SearchBarRenderer {
 
 > *"Headers cost rows, so showing more groups isn't always better — the doc's own example drops a whole category to show more results. I enumerate the number of groups k: k headers leave maxRows − k for results, needing at least k for the no-orphan rule; for each k I take the k largest groups and keep the best strictly-improving answer, which automatically prefers fewer groups on ties. Then quotas: one guaranteed slot per group, extras filled by global relevance. Every block is tagged with the rule it implements, and every rule has a test."*
 
-**记忆钩子**:**六步流程是主角,规则只是沙袋**——编号 → 复述 → 挑留白 → 规则变测试 → 注释标号 → 走查。算法侧一句话:**组头是税,枚举组数 k,严格更优才更新,保底加补位。**
+**记忆钩子**:**六步流程是主角,具体规则只是练习材料**——编号 → 复述 → 挑留白 → 规则变测试 → 注释标号 → 走查。算法侧一句话:**每个 header 占 1 行,枚举 group 数 k,严格更优才更新,保底加补位。**
