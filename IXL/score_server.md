@@ -206,21 +206,95 @@ public void handleMessage(String clientId, Message m) {
 
 **口播(简版,3 句,背这个)**:*"Give each client its own state and its own lock — a map from client ID to state. Different clients run in parallel; the same client is still one-at-a-time, and that's what we want, because order only matters inside one client. Sequence numbers are also per-client."* 被追问 scaling 补一句:*"The same idea scales out — hash the client ID to pick a server."*
 
-### FU2 — "不用锁能做吗?"(Actor 模式)
+### FU2 — "不用锁能做吗?"(Actor 模式 = 缩进 JVM 的 SQS)
 
-把消息全部丢进一个 `BlockingQueue`,单个 worker 线程消费——**天然串行,无锁 by construction**,代价是一次线程切换。与 synchronized 版是**同一语义的两种实现**。这就是 Task Scheduler FU6 的层 3——两道题在这里会师,面试里点破:*"same single-writer idea as an event loop / actor."*
+**直觉锚点**:这就是消息队列模式——把工作里的 SQS 缩小一亿倍塞进一个 JVM,就是 `BlockingQueue`(注意是 SQS 不是 SNS:SQS 队列一条消息一个消费者拿走;SNS 广播给所有订阅者;actor 的 mailbox 对应前者)。**形状相同,尺度不同**:BlockingQueue 进程内传引用、纳秒级、进程死即失;SQS/Kafka 跨机器走网络、毫秒级、落盘持久——屋里的传菜口 vs 城市间的物流系统。
 
-### FU3 — "消息会丢失呢?"
+```java
+class ActorScoreServer {
+    private final BlockingQueue<Message> mailbox = new LinkedBlockingQueue<>();
+    // ↓ 只有 worker 一条线程碰 —— 线程封闭,零锁
+    private final Map<Integer, Message> pending = new HashMap<>();
+    private int nextSeq = 1, score = 0;
 
-前缀会**永远卡死**在缺口上(后面的全部堆在缓冲里)。诚实的第一句:**这打破了题面的"不丢失"假设,是另一个问题**。然后给方向:ack + 重传 + 超时(把 TCP 的活自己干一遍);或超时跳过缺口并标记"结果可能不一致"——一致性和可用性在此交易(CAP 的味道,点到即止)。
+    ActorScoreServer() {
+        Thread worker = new Thread(() -> {
+            while (true) {
+                Message m = mailbox.take();   // 空了就睡(零 CPU),来货即醒
+                process(m);                   // 原九行逻辑,一个 synchronized 都不要
+            }
+        });
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    public void handleMessage(Message m) { mailbox.add(m); }   // 到达线程:只投递,投完即走
+}
+```
+
+三个要点:**到达线程只投递**(handleMessage 缩成一行,永不阻塞);**状态线程封闭**(正确性由结构保证,不靠自觉);**take() 真睡眠**。报告回复照旧走 CompletableFuture——**mailbox 送请求进去,future 送答案出来**。
+
+**必须预防的误解:队列不替代 seq!** BlockingQueue 保持的是**到达顺序**——到达顺序本来就是乱的。seq + pending + nextSeq 九行逻辑**原样搬进 worker,一行不少**;换掉的只有"锁"这一个零件(到达线程从"在锁上排队自己干"变成"往队列里投递,worker 专职干")。"无锁"要诚实:队列内部有自己的锁/CAS,但临界区从"九行处理"缩到"入队指针动一下",且**业务状态零锁**。
+
+**何时端出 + 血统**:默认写 synchronized 版;被追问"锁竞争大"或话题滑向"事件循环"时上 actor。血统:Node.js/Netty event loop、Redis 单线程、Erlang/Akka actor。最漂亮的收尾:**Kafka 就是 FU1 + FU2 的分布式合体**——`clientId → partition`(按键分区)+ partition 内单消费者按 offset 有序(单写线程 + seq 语义)。口播:*"It's the same shape as a Kafka partition with a single consumer — key-based partitioning plus in-order processing."* 这也是 Task Scheduler FU6 层 3,两道题在此会师。
+
+### FU3 — "消息会丢失呢?"(一个缺口冻全身)
+
+**事故现场**:发送 1–5,其中 2 永久丢失。应用 1 之后 nextSeq 停在 2,**3、4、5 全部堆在架上永远等**。三个症状一起爆发:**服务冻结**(2 之后的加减分永不生效,所有报告的 future 永不 complete——裸 join 的客户端永久睡死,"生产必配超时"在此兑现);**内存失控**("内存 = 乱序窗口"作废,窗口永远合不上);**无人报警**(不崩不抛,安静地不动,比崩溃难查)。
+
+**诚实的第一句**:题面约束 2 保证了不丢失——整个设计建立在这条保证上。先说 *"That breaks the stated no-loss assumption — it's a different problem now."* 展示你知道设计**依赖哪些前提**,前提变了换设计而不是硬凹。
+
+**两条出路,各付各的代价**:
+
+| | 方向一:ack + 重传(保正确) | 方向二:超时跳过(保可用) |
+|---|---|---|
+| 机制 | ①服务器定期回告"前 nextSeq−1 条收齐"(累计确认)②客户端存未确认副本,超时重发 ③重发带来重复 → 按 seq 去重 | 等缺口超过 T 秒 → nextSeq 直接跳过去,继续服务 |
+| 保住 | 语义完整(报告仍精确) | 服务不冻结 |
+| 付出 | 延迟、副本内存、控制流量——**把 TCP 的活自己干一遍**(序号/累计ACK/超时重传/去重) | 结果系统性偏差(丢的 delta 永远缺席)→ **必须打标**("存在缺口")或触发对账,绝不静默跳过 |
+| 像谁 | TCP、银行转账 | 直播弹幕、游戏排行榜 |
+
+方向一顺手暴露现有代码一个小洞(主动说出是加分):对"已应用过的旧 seq"重复到达,现在会 `pending.put` 后永远无人取走——纯内存泄漏。支持重传的第一行改动:方法开头加 `if (m.seq < nextSeq) return;`(幂等去重)。
+
+**CAP 收口 + 业务判断**:丢包(分区)发生时一致性和可用性只能保一个——方向一选 C,方向二选 A。说出 *"that's the consistency-versus-availability trade"* 即封顶,别展开定理。最后给判断(面试官爱听):**这是学生的分数**——数据要对、量不大,选方向一;换成直播间点赞数,选方向二。**技术方案跟着业务性质走。**
+
+口播:*"Loss breaks the stated assumption — the prefix would stall forever on the gap. Two ways out: add acks, timeouts and retransmission — basically redo TCP — and dedupe replays by seq; or time out and skip the gap, staying available but flagging results as inconsistent. For a student's score I'd choose correctness — retransmit."*
 
 ### FU4 — "服务器重启怎么恢复?"
 
 持久化 `score + nextSeq` 两个数即可恢复到前缀边界;缓冲里未应用的消息丢了没关系——客户端重发(配合 FU3 的重传机制)。追加写日志(journal)也行:每应用一条记一条,重放即恢复——与 Task Scheduler FU9 同款思想。
 
-### FU5 — "用时间戳代替 seq 行不行?"
+### FU5 — "用时间戳代替 seq 行不行?"(时钟报时,不数数)
 
-不行,这是个值得主动讲的深坑:时间戳能排序,但**判断不了"完整性"**——收到 t=100 和 t=300 的消息,你**无法知道**中间有没有一条 t=200 还在路上;而 seq 的本质是**连续无洞**,seq 4 没到就是没到,缺口看得见。报告需要的恰恰是"我之前的**全部**都到齐了"这个完整性承诺——**seq 给得了,时间戳给不了**。(另加时钟偏移一句:多机时间戳还有 clock skew 问题。)
+核心一句:**时间戳能排序,但不能数数;报告要的恰恰是"数数"级的承诺。** 并排走同一场景看"无法判定"的瞬间:
+
+```text
+―― seq 版 ――   手里有 seq 1(+10)、seq 3(报告)
+判定:3 前面该有恰好 2 条,我只有 1 条 → 缺的就是 2 → 等它。缺不缺?缺。缺哪个?2。等到谁?2。全部精确。
+
+―― 时间戳版 ―― 手里有 t=100(+10)、t=300(报告)
+判定:中间有没有一条 t=200 还在路上? ◄―― 无 法 判 定 ――►
+可能压根没有(现在答,对);可能有一条在飞(现在答,错)。数据里不存在回答所需的信息。
+"立刻答"是赌博;"等一等"等多久?时间轴上没有"下一个该来的值",任何有限等待都是拍脑袋。
+```
+
+**结构性原因:计数器 vs 时钟。**
+
+| | seq(计数器) | timestamp(时钟) |
+|---|---|---|
+| 值空间 | 离散、**连续无洞** | 连续稠密,任意两值间有无穷多可能 |
+| "该存在什么"可枚举吗 | 可(小于最大值的每个整数) | 不可(t=100 与 300 之间可能 0 条也可能 50 条) |
+| 编码了什么 | 位置 + **基数("我前面恰好 n−1 条")** | 只有位置,**零基数信息** |
+| 缺口 | **看得见**(等的就是 nextSeq) | 不可见(没有"下一个该来的值"的概念) |
+
+点睛:**seq n 说了两件事——"我排第 n"和"我前面恰好 n−1 条"**;后半句就是完整性承诺的全部来源。报告的需求"之前的**全部**到齐了"本质是数数题,时间戳不携带数量信息,永远答不了。
+
+**追问"多等一会儿呢?"→ 亮 watermark(加分点)**:流处理系统(Flink/Beam)真的这么干——event-time 配 **watermark**("不会再有早于 T 的消息了")。但要点破:**watermark 是启发式不是保证**,迟到数据照样出现,所以还得配 allowed lateness 等兜底。**工业界在时间戳上打的所有补丁,恰恰证明时间戳本身给不了完整性。**
+
+**第二论点:clock skew 补刀**——多机时钟互有偏差(NTP 只能缓解,还会回拨),跨机器时间戳**连排序都保不住**。(本题单客户,skew 是次要论点;先讲完整性,skew 当补刀。)
+
+**封口**:"给时间戳旁边加个'这是我发的第几条'字段呢?"——恭喜,**那个字段就叫 seq**。任何能判断完整性的补丁都携带计数信息,携带计数信息的编号就是序列号。TCP 用字节序号、Kafka 用 offset 追踪消费进度,全是同一个原因。
+
+口播(简版):*"Timestamps give order, but not completeness. With t=100 and t=300 in hand, I can't know if a t=200 is still on the way — there's nothing to count. A sequence number carries a count: seq 5 means exactly four messages before me, so I know precisely what's missing and when I'm complete. Clocks also drift across machines. Systems that use event time — like Flink — add watermarks precisely because of this, and watermarks are heuristics, not guarantees."*
 
 ## 10. 坑清单(考场速查)
 
