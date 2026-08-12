@@ -185,3 +185,71 @@ public class ScoreServer {
 > *"Arrival order doesn't contain send order, so I make every message carry a sequence number — reports included. The server buffers out-of-order arrivals and advances a prefix pointer, applying messages strictly in sequence; when a report's turn comes, the score is exactly the sum of everything sent before it — no special casing. Ordering is mandatory, not cosmetic: clamping to 0–100 makes deltas non-commutative. Each message is applied once — amortized O(1) — and dropped after applying, so memory is the out-of-order window, not the history. It's TCP reassembly with a tiny state machine on top."*
 
 **记忆钩子**:到达序没有发送序 → **seq 自带** → 缓冲 + 前缀指针(拼图)→ **报告入列免特判** → **clamp 反例证明必须按序** → 应用即丢弃(内存 = 乱序窗口)→ 一把锁收工。三处呼应:TCP 重排 = ABC FU4;actor = Task Scheduler FU6 层3;journal 恢复 = Task Scheduler FU9。
+
+---
+
+## 附:CompletableFuture 零基础速成(本题唯一的新面孔)
+
+### 它解决的困境
+
+报告消息到达时(线程 A),**答案可能还算不出来**——前缀有缺口,要等某条迟到的消息(未来由线程 B 送达)把前缀推过去,答案才诞生。困境:**答案诞生在线程 B 里,最初提问的人怎么拿到?** `CompletableFuture` = 一个"现在没有结果、将来会有"的盒子:提问方拿着盒子等,**任何线程在任何时刻**把答案装进去,等的人立刻醒来。
+
+### 心智模型:取餐呼叫器
+
+点单时店员递你一个呼叫器(`new CompletableFuture<>()`);后厨(另一个线程)饭好了按铃(`complete(饭)`);你的呼叫器一震,取餐(`join()`)。五个 API 够用:
+
+| 调用 | 谁用 | 含义 |
+|---|---|---|
+| `new CompletableFuture<T>()` | 提问方 | 造一个空呼叫器 |
+| `f.complete(v)` | **任何线程** | 装结果并按铃;只有第一次有效 |
+| `f.join()` / `f.get()` | 等答案的人 | **阻塞**到有结果再取出(join 抛非受检异常,面试用它省事) |
+| `f.isDone()` | 任何人 | 看一眼响没响,不等 |
+| `f.completeExceptionally(e)` | 出错方 | 装入异常,等的人 join 时收到 |
+
+实测两场景(`CfDemo.java`):**先等后响**——主线程 `join()` 真实阻塞 ~492ms,被厨房线程的 `complete(42)` 唤醒;**先响后等**——结果已在盒中,`join()` 0ms 立即返回。**呼叫器不在乎按铃和取餐谁先谁后**,这是它比裸线程通信省心的地方。(它还有一整套 `thenApply/supplyAsync` 异步流水线 API,本题用不到,知道存在即可。)
+
+### 和 synchronized、多线程的关系:互斥 vs 交接
+
+多线程世界有两类不同的问题,别混:
+
+| | 问题 | 工具 |
+|---|---|---|
+| **互斥** | 两个线程**同时改**共享数据会打架(`score`/`pending`/`nextSeq`) | `synchronized`:同一时刻只放一个线程进临界区 |
+| **交接** | 一个线程**等**另一个线程**未来**才产出的结果 | `CompletableFuture`:一次性的"结果盒子 + 门铃" |
+
+二者**互补而非竞争**——本题两个都用了:锁保三个共享变量不被并发写坏,future 把报告答案从"算出它的线程"送回"提问的线程"。面试里说出这个分工,并发一节就稳了。
+
+**揭魅:它不是魔法,是打磨好的 wait/notify。** 十行裸版:
+
+```java
+class MyFuture {                              // CompletableFuture 的裸版
+    private Integer value = null;
+    public synchronized void complete(int v) {
+        if (value == null) { value = v; notifyAll(); }   // 装结果 + 摇铃
+    }
+    public synchronized int join() throws InterruptedException {
+        while (value == null) wait();                    // 没结果就睡,摇醒再查
+        return value;
+    }
+}
+```
+
+`CompletableFuture` 就是这个"一次性阀门"的工业级版本(免虚假唤醒、带异常通道、带超时、带链式回调)——第 7 节说的"阻塞式设计语义相同但代码更长",长的就是这个样子。
+
+### 呼叫器在本题的完整旅程(发送 1:+10, 2:报告, 3:−5;到达 3→1→2)
+
+```text
+① 提问方造 Message.report(2) —— 呼叫器藏在消息里(response 字段),随消息漂流;
+   提问方留引用,之后 report.response.join() 等答案(加减分消息 response=null,不需回复)
+② seq 2 到达(某线程):前缀没到它,进缓冲。★ 该线程直接返回——没有任何线程在傻等!
+   "等待"被物化成缓冲里的一条消息,而不是一个阻塞的线程
+③ seq 1 到达(另一线程):推进前缀 → 轮到 2 → 这个线程调 response.complete(10) 按铃
+   ★ 按铃的线程 ≠ 造呼叫器的线程 ≠ 送达报告的线程——呼叫器不在乎谁按
+④ 提问方 join() 醒来,拿到 10
+```
+
+两颗星是本题最值得说出口的两句:**服务器里没有线程为等待而阻塞**(答案没好时,报告只是缓冲里的数据);**谁推进前缀谁按铃**(future 解耦了"谁问"和"谁答")。
+
+**闭环**:Task Scheduler FU6 的 actor 版是同款——`AddMsg` 带 `ack`、`PlanMsg` 带 `reply`,都是 CompletableFuture:**mailbox 把请求送进单线程,future 把答案送出来**,这就是"线程间请求-响应"的标准形态。
+
+**记忆钩子**:呼叫器随消息漂流,任何线程可按铃,先响后取也不怕;**synchronized 管"别同时改",future 管"把未来的答案递回来"**。
