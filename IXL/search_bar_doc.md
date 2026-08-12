@@ -36,22 +36,40 @@
 
 **场景**:搜索框的下拉建议列表。用户输入关键词,系统返回一批**已按 relevance(相关性)从高到低排好序**的结果;每条结果有 `title` 和 `category`(如 Math、ELA)。屏幕空间有限——下拉列表**最多显示 `maxRows` 行**。任务:实现 `render(results, maxRows)`,决定**显示什么、怎么排**,输出最终的行列表。
 
-**输入 / 输出长这样**(先看效果,再读规则):
+**输入 / 输出长这样**(真实数据,实际运行过;先看效果,再读规则)。用户在搜索框输入 "fraction",搜索引擎查出 5 条结果——这就是输入参数 `results`,每条是 `{title, category}` 对象,已按 relevance 从高到低排序:
 
-```text
-输入 results(已按 relevance 从高到低): M1(Math), E1(ELA), M2(Math), E2(ELA)
-输入 maxRows = 6
-
-输出(恰好 6 行;每行要么是 header,要么是 result):
-  [Math]        ← Math 的 header,自己占 1 行
-    M1
-    M2
-  [ELA]         ← ELA 的 header
-    E1
-    E2
+```java
+results = [ ("Add fractions", Math),            // 最相关
+            ("Fraction word problems", Math),
+            ("Read a fraction story", ELA),
+            ("Multiply fractions", Math),
+            ("Write about fractions", ELA) ]     // 最不相关
 ```
 
-**关键理解**:当 `maxRows` 放不下全部内容时,必须**做取舍**——可以整个 group 不显示,也可以一个 group 只显示前几条。下面六条规则就是取舍的**约束**(R1–R5)和**目标**(R6)。每条:英文原文 + 中文白话:
+```text
+render(results, 7) 的输出——屏幕够大,5 条全部 displayed(7 行):
+  [Math]                      ← Math group 的 header,自己占 1 行
+    Add fractions
+    Fraction word problems
+    Multiply fractions
+  [ELA]                       ← ELA group 的 header
+    Read a fraction story
+    Write about fractions
+
+render(results, 4) 的输出——屏幕小,必须取舍(4 行):
+  [Math]
+    Add fractions
+    Fraction word problems
+    Multiply fractions
+  ← ELA 整组 not displayed:输入里有它,屏幕上没有
+
+返回值本体是 List<String>,每个元素 = 屏幕上的一行:
+  ["[Math]", "  Add fractions", "  Fraction word problems", "  Multiply fractions"]
+```
+
+**词汇钉死**:`results`(输入)= 候选列表,"可以显示的",不是"一定显示的";**displayed** = 真的被画上屏幕的——`maxRows=4` 时 displayed results 只有 Math 的 3 条,ELA 的 2 条 not displayed;**group** = 一行 header + 它下面的 results 组成的板块;render 返回 `List<String>`,UI 逐行画。**全题 = 从 results 里挑出 displayed 的子集:行数不超预算,显示的 result 条数最多。**(后文缩写:M1 = Math 第 1 条 "Add fractions",M2、M3、E1、E2 同理。)
+
+六条规则 = 取舍的**约束**(R1–R5)和**目标**(R6)。每条:英文原文 + 中文白话:
 
 - **R1** *Displayed results are grouped by category; groups appear in the order each category **first appears** in `results`.*
   显示的 results 按 category 分组;group 的先后 = 各 category 在 `results` 里**第一次出现**的先后。上例:M1(Math)排在 E1(ELA)前面,所以 Math group 在 ELA group 前面。
