@@ -34,13 +34,37 @@
 
 ## 3. 重构题面(练习实例;现场以 doc 为准)
 
-> *Implement `render(results, maxRows)`. `results` is sorted by relevance (high → low); each result has a `title` and a `category`. Rules:*
-> - **R1** *Displayed results are grouped by category; groups appear in the order each category **first appears** in `results`.*
-> - **R2** *Each displayed group has a **header row** (costs 1 row).*
-> - **R3** *Within a group, results keep relevance order.*
-> - **R4** *A displayed group must contain **at least one** result (no orphan headers).*
-> - **R5** *Total rows (headers + results) ≤ `maxRows`.*
-> - **R6** *Goal: show as **many results** as possible; ties → **fewer groups**; still tied → groups whose first appearance is **earlier**.*
+**场景**:搜索框的下拉建议列表。用户输入关键词,系统返回一批**已按 relevance(相关性)从高到低排好序**的结果;每条结果有 `title` 和 `category`(如 Math、ELA)。屏幕空间有限——下拉列表**最多显示 `maxRows` 行**。任务:实现 `render(results, maxRows)`,决定**显示什么、怎么排**,输出最终的行列表。
+
+**输入 / 输出长这样**(先看效果,再读规则):
+
+```text
+输入 results(已按 relevance 从高到低): M1(Math), E1(ELA), M2(Math), E2(ELA)
+输入 maxRows = 6
+
+输出(恰好 6 行;每行要么是 header,要么是 result):
+  [Math]        ← Math 的 header,自己占 1 行
+    M1
+    M2
+  [ELA]         ← ELA 的 header
+    E1
+    E2
+```
+
+**关键理解**:当 `maxRows` 放不下全部内容时,必须**做取舍**——可以整个 group 不显示,也可以一个 group 只显示前几条。下面六条规则就是取舍的**约束**(R1–R5)和**目标**(R6)。每条:英文原文 + 中文白话:
+
+- **R1** *Displayed results are grouped by category; groups appear in the order each category **first appears** in `results`.*
+  显示的 results 按 category 分组;group 的先后 = 各 category 在 `results` 里**第一次出现**的先后。上例:M1(Math)排在 E1(ELA)前面,所以 Math group 在 ELA group 前面。
+- **R2** *Each displayed group has a **header row** (costs 1 row).*
+  每个被显示的 group 上方有一行 header(如 `[Math]`),**header 本身占掉 1 行**。
+- **R3** *Within a group, results keep relevance order.*
+  group 内部的 results 保持 relevance 顺序(M1 在 M2 前面)。
+- **R4** *A displayed group must contain **at least one** result (no orphan headers).*
+  不允许"只有 header、下面一条 result 都没有"的空 group。
+- **R5** *Total rows (headers + results) ≤ `maxRows`.*
+  输出总行数 = header 行数 + result 行数,不能超过 `maxRows`。
+- **R6** *Goal: show as **many results** as possible; ties → **fewer groups**; still tied → groups whose first appearance is **earlier**.*
+  取舍的目标,按优先级:① 显示的 **result 条数**尽量多(header 不算在内);② 条数并列时,group 数**更少**的方案赢;③ 仍并列,选 first appearance **更早**的那些 group。
 
 ## 4. 解法推导(讲给面试官听的顺序)
 
