@@ -124,11 +124,58 @@ public class ScoreServer {
 
 逐段解说:`Message` 是带工厂方法的值对象,`delta == null` 表示报告,报告自带 `CompletableFuture` 当回复通道(调用方 `report.response.get()` 等答案);`pending` 是乱序缓冲,**应用即 remove**——第六步的空间优化就藏在这一行;`while (pending.containsKey(nextSeq))` 是推进循环——每条消息只会被应用一次,均摊 O(1);clamp 那行 `Math.max(0, Math.min(100, ...))` 注意嵌套方向(先 min 上界再 max 下界,写反一个就错)。
 
+### 心脏九行:handleMessage 逐行拆解
+
+先钉两个状态变量的身份。**`nextSeq` = 追剧书签:"我该看第几集了"**——各集(消息)乱序下载完成,但必须按集数看,`nextSeq` 就是"看完的最后一集 + 1"。它是一条分界线:编号 < nextSeq 的**全部处理完毕并丢弃**;≥ nextSeq 的要么在架上等、要么还没到。三个易混点:它**可以不动**(来的不是等的那个,书签不翻页);**只 +1 前进,永不跳跃**(不能跳集——这正是约束 3);**和消息的 seq 是两回事**(seq 是"这是第几集",属于消息;nextSeq 是"看到哪了",属于服务器)。**`pending` = 提前到货的架子**:已到但没轮到的消息。
+
+```java
+public synchronized void handleMessage(Message m) {
+    pending.put(m.seq, m);                     // ① 不管是谁,先上架(统一路径,无分叉)
+    while (pending.containsKey(nextSeq)) {     // ② 等的编号在架上吗?不在 → 本次到此为止
+        Message cur = pending.remove(nextSeq); // ③ 取下并删掉(应用即丢弃 = 空间优化)
+        if (cur.delta != null) {               // ④ 类型标记:delta 有值=加减分,null=报告
+            score = Math.max(0, Math.min(100, score + cur.delta));   // ⑤ 更新 + 夹紧
+        } else {
+            cur.response.complete(score);      // ⑥ 轮到报告:score 恰为前缀分,按铃
+        }
+        nextSeq++;                             // ⑦ 书签翻页,回到 ② 看下一集在不在
+    }
+}
+```
+
+② 用 `while` 不用 `if` 是**多米诺**的关键:处理完这集,下一集可能**早在架上**,要连着看;写成 `if`,架上的存货永远没人触发,系统卡死。追踪输出(发送 `1:+10, 2:报告, 3:−5`,到达 `3→1→2`,实测):
+
+```text
+到达3:上架,等 1 → 本次 0 处理,架上 [3]
+到达1:等的到了!应用1(score=10)→ 2 不在 → 停,架上 [3]
+到达2:应用2(报告,complete(10))→ 3 早在架上!→ 顺势应用3(score=5)→ 架空
+```
+
+第三次到达触发**两连处理**(多米诺);报告回 10 不是 5(约束 3 由处理顺序结构性满足);全程架上最多 2 件(空间 = 乱序窗口)。
+
+**三个常见误解(修正后的执行模型)**:三条消息乱序到达 = **三次独立的 handleMessage 调用**——不是攒一批一次处理,前两次是"纯上架零处理"的空跑,while 三连完整发生在第三次调用内部;拿锁的是**到达线程**(题面:每条消息到达时在新线程调用),客户端线程从不进 handleMessage,它只在 `join()` 上睡觉等按铃;锁是**每次调用进门拿、出门放**(三次独立拿放),不是一次锁到底。
+
+**不变量(自检用),方法每次退出时恒成立**:编号 < nextSeq 全部应用并丢弃;≥ nextSeq 在架上或未到;score = 前缀 [1, nextSeq) 依序应用后的值。九行代码唯一的工作就是维护这句话。
+
+**clamp 小注**:夹钳——把值夹进 [0,100],超出按边界算。口诀:**min 配上界(压下来),max 配下界(托上去)**;JDK 21 有现成的 `Math.clamp(值, 0, 100)`(已验证),手写嵌套更通用且显原理。
+
 ## 7. 并发正确性(说出口的版本)
 
 `handleMessage` 整个标 `synchronized`(单把锁):多线程到达被串行化,`pending`/`nextSeq`/`score` 三个共享可变状态全部在锁内。锁内工作量小(每条消息只被应用一次),单客户场景完全够——**correctness first**。对比口述一个**阻塞式设计**:报告线程 `wait` 到前缀推进过自己再回复——语义相同,代码更长还要处理虚假唤醒;我们的版本里"等待"被物化成了"消息躺在缓冲里",不占线程。
 
 > *"One lock serializes arrivals; each message is applied exactly once inside the lock, so the critical section is amortized O(1). Waiting is materialized as 'sitting in the buffer' instead of a blocked thread."*
+
+**精确语义(被追问时的版本)**:`synchronized` 保证**互斥 + 完整性**——一个线程跑完整个方法体,三个共享变量绝不交叉(实测:两线程无锁各百万次 `++` 丢 26 万次更新,加锁后分毫不差),但**不承诺顺序**——几乎同时到门口的线程谁先进是任意的(内置锁不公平,甚至可能插队)。而这恰好无所谓:**处理逻辑只认 seq,不认进门顺序**,任何入场序结局相同。分工一句话:
+
+```text
+锁管"同时"(不许两人同时摸共享变量)——但连门口排队顺序都不管
+seq 管"乱序"(按发送序应用)——不管消息以什么顺序到、以什么顺序进门
+锁不解决乱序,seq 不解决同时——各司其职,拼起来严丝合缝
+```
+
+两个附注:锁挂在**对象**上,凡碰这三个变量的方法**都**得 synchronized,否则等于后门没锁;synchronized 还附送**内存可见性**(前人改的值,后人进门保证看得见,happens-before)——被深挖时说出这两个词即封顶。
+
+> *"synchronized guarantees mutual exclusion — each call runs to completion atomically. It does **not** guarantee ordering — but that's fine: ordering is seq's job, not the lock's. The lock handles 'at the same time'; the sequence numbers handle 'out of order'."*
 
 ## 8. 复杂度(说出口的版本)
 
@@ -136,9 +183,28 @@ public class ScoreServer {
 
 ## 9. Follow-up 全集(带详细答案)
 
-### FU1 — "多个客户端怎么办?"
+### FU1 — "多个客户端怎么办?"(锁粒度经典题,含实测)
 
-每个客户一套 `(pending, nextSeq, score)`:`Map<clientId, State>`。锁粒度顺势细化:全局一把锁 → **每客户一把锁**(不同客户互不阻塞;同客户仍串行,这正是语义要求)。seq 也变成 per-client 编号——"发送顺序"本来就是每个客户自己的概念。
+**题目变化**:N 个学生各自的分数、各自的消息流。关键观察:**"发送顺序"只在单个客户内部有定义**——A 的消息和 B 的消息之间没有任何顺序关系(各发各的,互不知晓)。所以 seq 天然变 **per-client 编号**:消息带 `(clientId, seq)`,各自从 1 数起。
+
+**状态分家**:每客户一套 `(pending, nextSeq, score)` 装进 State 小盒子,`Map<clientId, State>` 当目录。处理逻辑**一字不变**,先找到自己那套再跑。
+
+**锁粒度**:全局一把锁正确但蠢——A 处理时 B 明明碰的是完全不同的数据,也得排队,万级客户全挤一把锁。改**每户一把锁**:锁挂到 State 对象上(块语法 `synchronized (st) {...}` 可锁**任意对象**;方法版 = 锁 `this`)。不同客户 → 不同锁 → 并行;同一客户 → 同一锁 → 仍串行——**这不是妥协,是语义要求**(同户的前缀推进必须原子)。设计原则一句话:**锁的粒度匹配数据的粒度**。
+
+**暗坑:目录本身也是共享的。** 两线程同时对同一个新客户"查无则建",普通 HashMap 会竞态出**两套 State**(数据分裂)。解法:`ConcurrentHashMap.computeIfAbsent(clientId, id -> new State())`——"查无则建"整体原子,一个客户永远只有一套。(λ 参数 `id` 接到的就是缺失的那个 key,本例用不上,但 API 总会递给你——`computeIfAbsent(p, k -> new ArrayList<>())` 里的 `k` 是同款角色;配方只在缺失时执行,已验证。)于是形成经典**两层结构:目录用并发容器,门锁挂每户门上**。
+
+```java
+public void handleMessage(String clientId, Message m) {
+    State st = clients.computeIfAbsent(clientId, id -> new State());  // 原子"查无则建"
+    synchronized (st) {                     // 锁"这一户",不锁整栋楼
+        // …原九行逻辑,全部换成 st.pending / st.nextSeq / st.score…
+    }
+}
+```
+
+**实测**(4 客户 × 20 条消息,处理带 5ms 模拟耗时,4 线程并发投递):全局一把锁 **430 ms**,每户一把锁 **105 ms**——正好 4 倍,正确性检查全过。**延伸一句很值钱**:同一把"按 clientId 分区"的钥匙从锁一路开到集群——一致性哈希 `clientId → shard`,每户状态天然独立,水平分片零改造。
+
+**口播(简版,3 句,背这个)**:*"Give each client its own state and its own lock — a map from client ID to state. Different clients run in parallel; the same client is still one-at-a-time, and that's what we want, because order only matters inside one client. Sequence numbers are also per-client."* 被追问 scaling 补一句:*"The same idea scales out — hash the client ID to pick a server."*
 
 ### FU2 — "不用锁能做吗?"(Actor 模式)
 
@@ -185,6 +251,32 @@ public class ScoreServer {
 > *"Arrival order doesn't contain send order, so I make every message carry a sequence number — reports included. The server buffers out-of-order arrivals and advances a prefix pointer, applying messages strictly in sequence; when a report's turn comes, the score is exactly the sum of everything sent before it — no special casing. Ordering is mandatory, not cosmetic: clamping to 0–100 makes deltas non-commutative. Each message is applied once — amortized O(1) — and dropped after applying, so memory is the out-of-order window, not the history. It's TCP reassembly with a tiny state machine on top."*
 
 **记忆钩子**:到达序没有发送序 → **seq 自带** → 缓冲 + 前缀指针(拼图)→ **报告入列免特判** → **clamp 反例证明必须按序** → 应用即丢弃(内存 = 乱序窗口)→ 一把锁收工。三处呼应:TCP 重排 = ABC FU4;actor = Task Scheduler FU6 层3;journal 恢复 = Task Scheduler FU9。
+
+---
+
+## 附:多线程零基础速成
+
+**线程 = 一条独立往前推进的执行流**,三个动词全在这:
+
+```java
+Thread t = new Thread(() -> { ...要跑的活... });   // 造(还没跑)
+t.start();   // 从这刻起并行各跑各的(★写成 t.run() 就成了普通方法调用,没有新线程——经典坑)
+t.join();    // 我停下来等它跑完
+```
+
+执行交错**每次运行都可能不同**(有时穿插,有时一方连跑到底),调度不归你管——多线程代码必须对**任意交错**都正确,这就是它难的根源。
+
+**竞态(race condition)**:`count++` 看着一步,实际三步(读→加→写)。两线程交错时互相覆盖:各读到 5、各写回 6——两次 +1 只涨 1。实测:两线程各 +1 一百万次,无锁结果 **1,732,263**(凭空丢 26 万次);加 `synchronized` 后精确 **2,000,000**。竞态最阴在**概率性**——测试可能碰巧全对,上线偶尔错;所以本题的测试用 16 线程乱序压 20 轮去"钓"它(与 Rectangles 的属性测试同一哲学:确定性用例抓不到的,用量去抓)。
+
+**synchronized = 单人卫生间的门锁**:进门拿锁,拿不到在门口排队;里面的人跑完**整个方法体**才放锁。锁挂在**对象**上——`synchronized` 方法 ≡ `synchronized(this) {...}`,块形式可锁任意对象(FU1 的每户锁靠它)。保证:**互斥 + 完整性 + 可见性**;不保证:**入场顺序**(不公平锁,谁抢到算谁的)。
+
+**本题的两坑两药(全题并发认知的浓缩)**:
+
+```text
+坑一:同时(多条到达线程同一瞬间摸共享数据)→ 药:synchronized(排队,一次一个)
+坑二:乱序(先发的消息可能后到)            → 药:seq + 缓冲 + 前缀指针(排回发送序)
+锁不解决乱序,seq 不解决同时——各司其职,缺一不可
+```
 
 ---
 
@@ -252,4 +344,18 @@ class MyFuture {                              // CompletableFuture 的裸版
 
 **闭环**:Task Scheduler FU6 的 actor 版是同款——`AddMsg` 带 `ack`、`PlanMsg` 带 `reply`,都是 CompletableFuture:**mailbox 把请求送进单线程,future 把答案送出来**,这就是"线程间请求-响应"的标准形态。
 
-**记忆钩子**:呼叫器随消息漂流,任何线程可按铃,先响后取也不怕;**synchronized 管"别同时改",future 管"把未来的答案递回来"**。
+### 为什么是 complete(score),而不能是普通赋值?
+
+表层:类型不对(`response` 是盒子不是整数,`= score` 编译不过)。深层:就算把字段改成 `Integer answer` 直接赋值,客户端也是死路三条——**不知何时去读**(报告先到时答案尚未诞生,handleMessage 返回时还是 null);**只能死循环轮询烧 CPU**(实测:等 300ms 空转 **6.19 亿次**);**可见性无保证**(无同步时,写线程写下的值可能一直待在它的 CPU 缓存里,轮询线程可能永远读到 null,循环挂死)。
+
+`complete(v)` 是**三合一**:赋值 + 按铃(唤醒所有睡在 join 上的线程)+ 可见性保证(happens-before);`join()` 是对偶三合一:睡觉(零空转)+ 被按铃叫醒 + 保证看见最新值。一句话:**`=` 只会放东西,不会叫人;跨线程传"未来才有的值",缺了"叫人"和"看得见",放了也白放。**
+
+### join 的三种现实用法(ans 永远不会是 null)
+
+先破一个常见错觉:`int ans = f.join()` 里 **ans 从无 null 时刻**——`join()` 是"不放行"的调用,线程停在这一行直到答案诞生,`=` 的赋值发生在 join 返回**之后**;能执行到下一行,ans 必然有值。**join 不是"取当前值",是"等到有值才放行"——交到你手里的永远是熟饭。**三种用法(全部实测):
+
+1. **同步阻塞(join)——专职线程,等待就是本职**:Web 请求处理线程发 report → join 等 → 把答案写进 HTTP 响应。本题测试代码即此用法。
+2. **异步回调(thenAccept)——不等,留条**:`f.thenAccept(v -> 更新界面(v))`,登记"答案到了执行这段",线程继续干别的。UI 线程必用(join 会冻住界面)。细节:回调由**按铃的那条线程**顺手执行。
+3. **带超时(get + timeout)——生产铁律**:`f.get(2, TimeUnit.SECONDS)`,超时抛 TimeoutException → 降级("服务繁忙")或重试。为什么必须:FU3 的消息丢失场景里前缀卡死,future **永远不会被 complete**,裸 join 的线程永久泄漏——**超时是分布式系统的救生索**(这句把 FU3 和 CompletableFuture 串起来了)。
+
+**记忆钩子**:呼叫器随消息漂流,任何线程可按铃,先响后取也不怕;**synchronized 管"别同时改",future 管"把未来的答案递回来"**;`=` 不会叫人,join 只交熟饭,现实中永远配超时。
