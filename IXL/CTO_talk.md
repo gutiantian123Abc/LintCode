@@ -13,6 +13,8 @@
 | A | 内推同学(在职) | Joe 人好不用紧张;会问:为什么开始写代码 / 平时喜欢做什么 / 希望将来的组什么样 / 什么是好的 engineering principle / 什么是好代码 / 遇到过什么难题;**Joe 比较会追问细节**;注重 **technical excellence**,然后 culture fit;工程文化对标 Google 风格 |
 | B | Medium 面经(Joe 亲口) | 他的四条标准:**communication / quality of code / optimization / cooperation** |
 | B | Glassdoor 多条 | IXL 头号 BQ:*"Why are you interested in working in EdTech at a company like IXL?"* |
+| A | 内推人首封邮件(7/13) | 公司**非常看重 culture fit + 教育热情**;建议**表达比较确定会加入的意愿**;**少在面试阶段聊身份问题**(offer 后再沟通);产品要做 research(重点 IXL + 各收购品牌);**近期收购 MyTutor**(已验证公开:2025/5,£34.4M,IXL 首次收购海外公司);**内部有融合项目**(如整合 Vocabulary.com、ABCya 进 IXL);公司价值观:好奇心强、爱解决问题、**用技术带来实际影响/帮助他人的成就感**、技术+沟通+协作+一定领导力;氛围:不卷、家庭式、开学季前稍忙、results-driven、乐于助人 |
+| B | 官方 JD | **San Mateo HQ onsite 岗**(你在 Atlanta → relocation 话题若出现,答干脆的 yes);**Java 被点名**;3+ 年经验;*"Passion for improving education through technology"* 是**明文硬性要求**;职责原文:back-end wiring + application logic + **UI**、from scratch 与 existing code base 并重、design/coding/documenting/**testing**/debugging/**tuning**、跨多团队协作、估算与可行性评估;引用级数据:**1 in 4 美国学生用 IXL**、Rosetta Stone 25 种语言、Wyzant 全美最大 tutor 社区(300+ 科目);文化词:collaboration、kindness and respect、passion/tenacity/authenticity;薪资带 $116–150k(**offer 阶段的知识,周一绝不提**) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
 
 两个说法的调和:HR 说"非技术",同学说"技术"——**都对**:不考写码(非技术形式),考的是你**谈论技术的方式**(技术内核)。
@@ -99,7 +101,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 产品叙事 + 工程叙事,**只表达被吸引,零评价**:
 
-> *"Two things. The product: I've actually used Rosetta Stone as a learner, and IXL is a whole family now — the platform work underneath IXL, Rosetta Stone, TPT is exactly the kind of infrastructure I want to build. And the mission is concrete: the feedback loop is real kids actually learning. The work: at Capital One I build services where correctness is non-negotiable. Core Technology is that same discipline, applied to something that obviously matters. That combination is why IXL is my first choice."*
+> *"Two things. The product: I've actually used Rosetta Stone as a learner, and IXL is a whole family now — the platform work underneath IXL, Rosetta Stone, TPT is exactly the kind of infrastructure I want to build. And the mission is concrete: one in four U.S. students uses IXL — the feedback loop is real kids actually learning. The work: at Capital One I build services where correctness is non-negotiable. Core Technology is that same discipline, applied to something that obviously matters. That combination is why IXL is my first choice."*
+
+("one in four U.S. students" 是 JD 官方数据,引用它 = 又一个做过功课的信号。)
 
 注意:提到 Rosetta Stone 只说 "I've used it as a learner"——正面兴趣信号,**不接任何评价**。
 
@@ -107,9 +111,13 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 90 秒版 self-intro:学校 → Capital One 在做什么(一句话系统画像)→ 拿手领域(并发/可靠性/测试)→ 为什么坐在这里。每段简历项目至少准备两层细节。
 
-### Q9. 杂项可能:working style / 怎么处理分歧 / 怎么学新东西
+### Q9. 杂项可能:working style / 怎么处理分歧 / 怎么学新东西 / location
 
 一律短答 + 具体一例。分歧类答案的安全模板:*"Data and respect — I state my case with evidence, listen for what I'm missing, and commit fully once we decide."*
+
+**location/relocation 若被提及**(JD 是 San Mateo onsite 岗,你在 Atlanta):干脆无保留——*"Absolutely — I'm ready to relocate to San Mateo."* 一秒都不犹豫,不加条件;犹豫是这轮唯一真正致命的信号。
+
+**跨栈若被提及**(JD 职责含 UI):*"Backend is my core strength, and I'm happy to work up the stack when the product needs it — I'd rather own the feature than own a layer."*
 
 ---
 
@@ -121,8 +129,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 ### 主用
 
 **P1(Core Tech × 多品牌战略——双重认证:Kevin 的"产品具体" + 同学几乎原话推荐)**:
-> *"With the brand family growing — IXL, Rosetta Stone, TPT, Dictionary.com — how does Core Technology think about shared platform versus per-product infrastructure? What's the direction there?"*
-为什么好:同学的例子和这题几乎一字不差;这是 Joe 每天在想的问题,也证明你理解自己岗位在版图里的位置。
+> *"With the family growing — IXL, Rosetta Stone, TPT, and now MyTutor as the first international acquisition — how does Core Technology think about shared platform versus per-product infrastructure? What's the direction there?"*
+为什么好:同学的例子和这题几乎一字不差;点出 MyTutor 是"**第一次海外收购**"= 你连最新动态都做了功课;这是 Joe 每天在想的问题。
+**背景知识使用规则**:内推人提到的内部融合项目(Vocabulary.com/ABCya 整合进 IXL)**只做你理解答案的背景,不要当成自己的发现说出口**——如果 Joe 聊到融合方向,你自然接住即可;若被问"你怎么了解这么多",大方说 *"I did my research, and a friend at IXL has told me great things"*(你是正式内推,提朋友完全合法)。
 
 **P2(Rosetta Stone 方向——Kevin 的"某个具体产品的方向、未来"点名形态)**:
 > *"I've been a Rosetta Stone user, so I'm genuinely curious: with conversational AI moving so fast, how do you think about evolving the immersion method? What's the long-term vision for language learning at IXL?"*
@@ -133,16 +142,44 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 > *"If I joined Core Technology, what kinds of projects would an engineer with my background likely take on in the first year — and which of them matter most to where the platform is heading?"*
 为什么好:同学原话"问问你之后进去组有什么事比较适合你的";隐含承诺信号(已经在想象入职),又把话题交回他手里。
 
-### 备用
+### 备用(时间富余或气氛引导时用,按序)
 
-**P4(技术演进)**:*"IXL's Real-Time Diagnostic already personalizes practice — how are you thinking about what AI changes next in personalized learning?"*
-**P5(个人视角,气氛好时用)**:*"You've been building this for a long time — what's kept the problem interesting for you?"*
+**P4(战略挑战——题库 #25 适配,CTO 最有的聊的类型)**:
+> *"What's the biggest technical challenge Core Technology is working through right now?"*
+语气要点:"挑战 = 有意思的问题",纯好奇,不是"你们哪里不行"。
+
+**P5(技术演进)**:*"IXL's Real-Time Diagnostic already personalizes practice — how are you thinking about what AI changes next in personalized learning?"*
+
+**P6(半年期待——题库 #22,与 P3 同方向,二选一别都问)**:
+> *"What would you expect from an engineer at my level in the first six months?"*
+
+**P7(暖场收尾——题库 #20,气氛好时的最后一问)**:
+> *"What advice would you give an engineer at the start of their career at IXL?"*
+Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不掉价。
+
+**P8(个人视角——题库 #3/#23 合体)**:*"You've been building this for a long time — what's kept it interesting for you?"*
 
 ### 不问清单(提问区专属红线)
 
 - **tech stack 类**(用什么语言/框架/数据库)——同学原话:跟 CTO 没什么好聊的。这是入职后跟同事聊的话题,问 CTO 显得层次不够。
 - 薪资/福利/流程类(Kevin 的领域)。
 - 任何"你们为什么不做 X"式的隐性批评。
+
+### 同学给的 1p3a 27 题库:CTO 轮逐题筛选
+
+原帖自标"1–6 问 IC、7–13 问 manager"——它是通用武器,你的战场有特殊规则(Kevin:不 generic;同学:多 strategy)。筛选结果:
+
+| 题库编号 | 判定 | 说明 |
+|---|---|---|
+| #9、#22、#25、#20、#3/#23 | ✅ 已适配收编 | 分别成为 P3、P6、P4、P7、P8 |
+| #16(深专 vs 广博) | ✅ 可临场用 | 工程观念类,CTO 合适:*"Do you look for depth in one area or breadth across many — how does that play out here?"* |
+| #6/#7/#8/#10/#11/#13 | 🔒 留给以后 | 都是好问题,但属于 **hiring manager / team matching** 轮——组规模、PM 关系、项目成功标准,到那轮再掏 |
+| #1/#5/#21/#26/#27 | ❌ 这轮别问 | daily workflow、team bonding、hackathon——generic,踩 Kevin 红线 |
+| #14/#15(转组/转方向支持) | ❌❌ 严禁 | 还没进门先问怎么离开这个组 = red flag |
+| #19(钓结果:"我哪里可以提高") | ❌❌ 严禁 | 在 CTO 面前显不自信;这轮结果不靠钓 |
+| #24(你最不 enjoy 公司哪里) | ❌❌ 严禁 | 邀请 CTO 说公司坏话——产品禁忌的近亲 |
+| #12(你评价工程师最看重什么) | 💡 不必问 | **答案你已经有了**(四条标准:communication / quality / optimization / cooperation)——把它织进你的回答里,比问出来值钱十倍 |
+| #2/#4/#17/#18 | — 不适用 | 场景不符(前雇主对比/彩票/城市/"没体验过的独特之处"对老 CTO 不成立) |
 
 **红线**:这轮**不问** salary / benefits / WFH / 假期;不问任何能被读成质疑产品决策的问题;不问 Kevin 能答的流程性问题(下一步/时间线——那是 Kevin 的)。
 
@@ -173,6 +210,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 | 过度恭维 | 他见得多了 |
 | SmartScore 争议等任何产品负面话题 | 铁律一的延伸 |
 | 问 tech stack | 同学原话"没什么好聊的,毕竟 CTO"——层次不匹配 |
+| **主动聊身份/visa** | 内推人首封邮件原话:少在面试阶段聊,offer 之后再沟通;被直接问就一句事实带过,不展开 |
 
 ---
 
@@ -185,11 +223,23 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 | optimization | 难题故事里带一个性能/效率的具体改进(有数字最好) |
 | cooperation | Q6 团队答案 + 分歧处理模板 |
 
+内推人补充的公司价值观,对应落点:**好奇心**→ 你的提问区 + 听他讲时的真实兴趣;**用技术带来实际影响/帮助他人**→ why IXL 的核心句(real kids actually learning);**乐于助人**→ Q6 团队答案里加一句 *"I want to be the kind of teammate people feel safe asking for help — and I ask, too"*(呼应"大家庭"氛围);**解决问题的兴趣**→ 难题故事里的享受感,不是抱怨感。
+
+**JD 关键词回声表**(答案里自然用 JD 的词,他听着就"对味"):
+
+| JD 原文 | 回声位置 |
+|---|---|
+| *testing, debugging, and tuning* | Q4/Q5——你的测试意识和性能改进故事,JD 明文要的就是这个 |
+| *starting from scratch and working within the existing code base* | Q2 可加一句:两种都喜欢——旧代码是"someone's tested wisdom",从零建是"设计不变量的机会" |
+| *collaborate across multiple development teams* | Q6 团队答案;cooperation 标准同款 |
+| *accurate estimates, evaluate feasibility* | 难题故事里若有估算/取舍决策,点一下这层 |
+| *passion for improving education through technology* | why IXL——注意这句在 JD 里是**硬性要求**,不是装饰 |
+
 ---
 
 ## 7. 周末准备清单
 
-**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(三层!)的真实版本;② why IXL 终稿背熟;③ P1–P3 问题背熟。
+**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(三层!)的真实版本;② why IXL 终稿背熟;③ P1–P3 问题背熟;④ 扫 IXL 官方 blog + MyTutor 收购新闻(内推人建议,30 分钟封顶,记 2–3 个具体名词即可)。
 **周日(练交付)**:① 出声排练全部短答,**计时 45 秒,练"停"**;② 模拟追问(可以来找我,我扮 Joe 按他的风格追问细节);③ 同学回复后更新第 0/5 节。
 **周一**:① 白天正常上班,晚饭吃好;② 6:00 设备检查(摄像头/麦克/网络/安静房间);③ 6:15 扫第 5 节红线清单;④ 6:25 进 Meet 等待。
 
