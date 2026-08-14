@@ -15,7 +15,7 @@
 | B | Glassdoor 多条 | IXL 头号 BQ:*"Why are you interested in working in EdTech at a company like IXL?"* |
 | A | 内推人首封邮件(7/13) | 公司**非常看重 culture fit + 教育热情**;建议**表达比较确定会加入的意愿**;**少在面试阶段聊身份问题**(offer 后再沟通);产品要做 research(重点 IXL + 各收购品牌);**近期收购 MyTutor**(已验证公开:2025/5,£34.4M,IXL 首次收购海外公司);**内部有融合项目**(如整合 Vocabulary.com、ABCya 进 IXL);公司价值观:好奇心强、爱解决问题、**用技术带来实际影响/帮助他人的成就感**、技术+沟通+协作+一定领导力;氛围:不卷、家庭式、开学季前稍忙、results-driven、乐于助人 |
 | B | 官方 JD | **San Mateo HQ onsite 岗**(你在 Atlanta,简历已印 "Open to relocation to the San Francisco Bay Area" → 话题若出现,答干脆的 yes);**Java 被点名**;3+ 年经验;*"Passion for improving education through technology"* 是**明文硬性要求**;职责原文:back-end wiring + application logic + **UI**、from scratch 与 existing code base 并重、design/coding/documenting/**testing**/debugging/**tuning**、跨多团队协作、估算与可行性评估;引用级数据:**1 in 4 美国学生用 IXL**、Rosetta Stone 25 种语言、Wyzant 全美最大 tutor 社区(300+ 科目);文化词:collaboration、kindness and respect、passion/tenacity/authenticity;薪资带 $116–150k(**offer 阶段的知识,周一绝不提**) |
-| A | 你自己交出的信息 | 你已告诉 HR:**"我约 50% 的英语是用 Rosetta Stone 学的"** → 大概率进了面试官 notes,**Joe 主动聊 Rosetta Stone 的概率显著上调**(应答脚本见 Q10);最新简历已提交,每个加粗数字都是追问按钮(深挖预测见 6.5 节) |
+| A | 你自己交出的信息 | 你已告诉 HR 两件事:①**"我约 50% 的英语是用 Rosetta Stone 学的"**(→ Joe 主动聊 Rosetta Stone 概率上调,见 Q10);②**妻子刚拿到湾区 offer,我们要搬去湾区**(→ 这是"why now"的王牌:一次性打掉"为何才一年半就走"和"真会搬吗"两大疑点,但**只能当时机层,不能当选择层**,见 Q11 v2)。最新简历已提交,每个加粗数字都是追问按钮(6.5 节) |
 | B | Joe 官方 bio + 公开履历 | 官网原文:*"particularly interested in **tools, processes, infrastructure, and tuning**"*;Oracle applications division 工程师出身;IXL **早期亲手搭建 codebase 与服务器基础设施**(builder 型,VP Eng 一路升到 CTO,管研发 + 技术运维);UC Berkeley CS;CEO Mishkin 同为工程师出身——全公司 builder 文化(详见 0.5 节) |
 | A | Kevin(AI 专条) | **IXL 对 AI/LLM 的使用比较 conservative**——产品涉及大量儿童信息,可能无法给很大的 AI 使用权限 → AI 话题的正确姿态全面翻转:从"我能帮你们冲"改为"我理解你们为什么慢"(完整修正见 6.5 节 G) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
@@ -161,7 +161,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 一律短答 + 具体一例。分歧类答案的安全模板:*"Data and respect. I make my case with evidence, I listen for what I'm missing — and once we decide, I'm all in."*
 
-**location/relocation 若被提及**(JD 是 San Mateo onsite 岗,你在 Atlanta):干脆无保留——*"Absolutely — I'm ready to relocate to San Mateo."* 一秒都不犹豫,不加条件;犹豫是这轮唯一真正致命的信号。
+**location/relocation 若被提及**(JD 是 San Mateo onsite 岗,你在 Atlanta):你现在有最强版本的答案——不是"愿意搬",是"本来就要搬":*"Absolutely. In fact we're already moving — my wife just accepted a role in the Bay Area. So San Mateo works perfectly for us."* 零犹豫 + 家庭锚点 = 公司能听到的最放心的 relocation 答案。
 
 **跨栈若被提及**(JD 职责含 UI):你有真实弹药,不用泛泛表态——*"I've done it before — Spring Boot plus the Angular UI at Seek Now. Backend is my strong side. But **I'd rather own the feature than own a layer**."*
 
@@ -171,11 +171,15 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 **守则不变**:全程正面、零建议、不聊任何"要是能……就好了"。只有他**明确**问 "anything you'd improve?" 才启用第 1 节的三层应急版。这一题答好 = 全场最难忘的 45 秒:你不是"对教育感兴趣的候选人",你是**产品亲手教出来的候选人**。
 
-### Q11. "为什么 Capital One 一年半就想走?"(时间线必然可见,必备)
+### Q11. "为什么 Capital One 一年半就想走?/ 为什么是现在?"(时间线必然可见,必备)
 
-> *"**I'm not running away from Capital One — I'm running toward something.** Capital One taught me to build carefully, at bank standards, and I'm grateful for that. But my pull toward education is real and specific: Rosetta Stone taught me English. My favorite project was a learning tool. IXL is where all of that points. **This is a choice, not an escape.**"*
+**双层结构:时机层(家庭)+ 选择层(使命)。** 妻子的湾区 offer 是无可质疑的人生理由,它解释"为什么是现在";但它**永远不回答"为什么是 IXL"**——那一层还是你的教育叙事。连接句:"搬家已定,选择才开始。"
 
-红线:**不说 Capital One 一个坏字**;"toward, not away" 是整段的骨架。
+> *"There's a practical side and a personal side. The practical side: my wife just accepted an offer in the Bay Area, so we're moving — that's decided, as a family. Capital One doesn't have an engineering office out there. So the real question became: **where do I do my best work in the Bay Area?** And that's the personal side: Rosetta Stone taught me English. My favorite project was a learning tool. IXL is where all of that points. Honestly, it felt almost lucky — the product that taught me English is right there. **This is a choice, not an escape.**"*
+
+为什么这个版本更强:① 家庭搬迁让"一年半就走"变得完全正常——没人追问一个家庭团聚的决定;② relocation 疑虑同时消失——你不是"愿意搬",你是"**本来就要搬**",而且妻子的事业也在那里 → 你会来、更会**留下**,这是他们最想要的 retention 信号;③ "搬家已定,在湾区选哪家才是真正的选择"——这让 first choice **更可信**,因为它发生在真实的人生决策里。
+
+红线:**不说 Capital One 一个坏字**;**"催我/赶快/尽快需要工作"这类紧迫感词汇永远不出口**(紧迫 = 议价能力下降 + "随便什么湾区工作都行"的错误信号);你已告诉过 HR 此事,**口径必须一致**——Joe 若主动提("听说你要搬来湾区"),温暖确认一句,立刻接选择层。
 
 ---
 
@@ -272,6 +276,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 | 问 tech stack | 同学原话"没什么好聊的,毕竟 CTO"——层次不匹配 |
 | **主动聊身份/visa** | 内推人首封邮件原话:少在面试阶段聊,offer 之后再沟通;被直接问就一句事实带过,不展开 |
 | **提议 IXL 用 AI 做任何事 / 流露对 AI 保守的惋惜** | Kevin 独家情报:儿童数据 → AI conservative;产品建议禁忌 × AI 谨慎文化双重死区,正确姿态是"谨慎同盟"(6.5 节 G) |
+| **把搬家说成找 IXL 的原因 / 流露"急着找工作"** | 妻子 offer 只当"why now"层;说成"why IXL"= 地理顺路,毁掉 first choice 叙事;紧迫感词汇伤谈判力(Q11 v2) |
 
 ---
 
