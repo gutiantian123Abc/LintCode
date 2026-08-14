@@ -16,11 +16,34 @@
 | A | 内推人首封邮件(7/13) | 公司**非常看重 culture fit + 教育热情**;建议**表达比较确定会加入的意愿**;**少在面试阶段聊身份问题**(offer 后再沟通);产品要做 research(重点 IXL + 各收购品牌);**近期收购 MyTutor**(已验证公开:2025/5,£34.4M,IXL 首次收购海外公司);**内部有融合项目**(如整合 Vocabulary.com、ABCya 进 IXL);公司价值观:好奇心强、爱解决问题、**用技术带来实际影响/帮助他人的成就感**、技术+沟通+协作+一定领导力;氛围:不卷、家庭式、开学季前稍忙、results-driven、乐于助人 |
 | B | 官方 JD | **San Mateo HQ onsite 岗**(你在 Atlanta,简历已印 "Open to relocation to the San Francisco Bay Area" → 话题若出现,答干脆的 yes);**Java 被点名**;3+ 年经验;*"Passion for improving education through technology"* 是**明文硬性要求**;职责原文:back-end wiring + application logic + **UI**、from scratch 与 existing code base 并重、design/coding/documenting/**testing**/debugging/**tuning**、跨多团队协作、估算与可行性评估;引用级数据:**1 in 4 美国学生用 IXL**、Rosetta Stone 25 种语言、Wyzant 全美最大 tutor 社区(300+ 科目);文化词:collaboration、kindness and respect、passion/tenacity/authenticity;薪资带 $116–150k(**offer 阶段的知识,周一绝不提**) |
 | A | 你自己交出的信息 | 你已告诉 HR:**"我约 50% 的英语是用 Rosetta Stone 学的"** → 大概率进了面试官 notes,**Joe 主动聊 Rosetta Stone 的概率显著上调**(应答脚本见 Q10);最新简历已提交,每个加粗数字都是追问按钮(深挖预测见 6.5 节) |
+| B | Joe 官方 bio + 公开履历 | 官网原文:*"particularly interested in **tools, processes, infrastructure, and tuning**"*;Oracle applications division 工程师出身;IXL **早期亲手搭建 codebase 与服务器基础设施**(builder 型,VP Eng 一路升到 CTO,管研发 + 技术运维);UC Berkeley CS;CEO Mishkin 同为工程师出身——全公司 builder 文化(详见 0.5 节) |
+| A | Kevin(AI 专条) | **IXL 对 AI/LLM 的使用比较 conservative**——产品涉及大量儿童信息,可能无法给很大的 AI 使用权限 → AI 话题的正确姿态全面翻转:从"我能帮你们冲"改为"我理解你们为什么慢"(完整修正见 6.5 节 G) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
 
 两个说法的调和:HR 说"非技术",同学说"技术"——**都对**:不考写码(非技术形式),考的是你**谈论技术的方式**(技术内核)。
 
 ---
+
+## 0.5 Joe Kent 画像:共鸣点与新雷区
+
+**使用总规则**:公开的职业信息只用来**塑造你的重点和问题**,不用来展示("我看到你的 bio 说……"= 念别人档案,礼貌但惊悚)。让他自己听出共鸣,永远好过你指出共鸣。唯一安全的显性引用:P8 那句 *"you've been building this for a long time"*(公开显然 + 得体)。
+
+### 四个共鸣点(从强到弱)
+
+1. **他的自我描述 = 你的简历**。"tools, processes, infrastructure, and tuning" 四个词逐一对上你的经历:tools = 你的 developer-productivity CLI、code-review agent、knowledge assistant(三个都是给人造工具);processes = code-review agent 就是流程自动化;infrastructure = doc-sync service + 你要加入的 Core Technology;tuning = 你简历上白纸黑字的 "testing, debugging, tuning"。**用法:Q2 的答案里自然说出这种兴奋**(已升级,见 Q2),说他的母语,他自己会听出"这孩子和我同类"。
+2. **他也是"大厂 → mission 驱动的小公司"**:Oracle 应用工程师 → 去 IXL 从零建。你的 Capital One → IXL 弧线和他同构——Q11 的 "toward, not away" 对他有个人共鸣。**不要明说**"你也是这样",让故事自己共振。
+3. **builder 型 CTO,技术很厉害(同学证词)**:早期 codebase 是他亲手搭的 → 他 drill 细节因为他真的懂每一层。诚实规则("my understanding stops at X")在他面前是铁的。
+4. **全公司 builder 文化**:CEO 也写过第一版产品。这里最受赏识的是露真功夫,最忌讳的是空谈。
+
+### 新雷区(在原红线之上叠加)
+
+| 雷 | 原因 |
+|---|---|
+| **贬损 legacy code**(任何"老代码很烂/该重写"的语气) | 现有 codebase 的早期部分**可能是他亲手写的**——那不是技术债,是他的作品。你的台词:*"legacy code is someone's tested wisdom"*(从加分句升级为保命句) |
+| 念他的履历/学校("我看到你是 Berkeley 的") | 研究公司 = 用功;研究个人并说出口 = 越界。UC Berkeley 不主动提 |
+| 吐槽 Oracle 或任何大厂 | 他从 Oracle 来的;你也不吐槽 Capital One——同一条纪律的两面 |
+| 用旧头衔(VP Engineering) | 称呼就是 Joe;头衔场合说 CTO |
+| 任何个人生活信息(居住地等) | 永远出界 |
 
 ## 1. 三条铁律(Kevin 红线,考场纪律)
 
@@ -63,9 +86,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 答案主线(你的真实优势):可靠性导向的后端工程。
 
-> *"I like the kind of backend work where correctness is non-negotiable. At Capital One that means services where money can't be wrong — so I've gotten deep into concurrency, defensive design, and testing. My favorite moments are finding the invariant that makes a hard problem simple."*
+> *"I like the kind of backend work where correctness is non-negotiable. At Capital One that means services where money can't be wrong — so I've gotten deep into concurrency, defensive design, and testing. My favorite moments are finding the invariant that makes a hard problem simple. And I keep gravitating toward building tools for other engineers — the code-review agent, a codegen CLI — because making the whole team faster is the most leveraged thing I know how to do."*
 
-"invariant" 这个词值得说——这两周你真的在用它思考(295 的两条不变量、Score Server 的 seq、账本恒等式)。如果他追问,你有无穷弹药。
+"invariant" 这个词值得说——这两周你真的在用它思考(295 的两条不变量、Score Server 的 seq、账本恒等式)。如果他追问,你有无穷弹药。**最后那句 tools 的兴奋是特意加的**:tools/processes/infrastructure/tuning 是 Joe 官方 bio 的自我描述(见 0.5 节)——你说的是他的母语,但绝口不提你知道这一点。
 
 ### Q3. "What does good code look like?"(他的招牌领域)
 
@@ -161,7 +184,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 > *"What's the biggest technical challenge Core Technology is working through right now?"*
 语气要点:"挑战 = 有意思的问题",纯好奇,不是"你们哪里不行"。
 
-**P5(技术演进)**:*"IXL's Real-Time Diagnostic already personalizes practice — how are you thinking about what AI changes next in personalized learning?"*
+**P5(AI × 责任——按 Kevin "AI 保守"情报重写)**:
+> *"A lot of edtech is racing to add AI everywhere. Given the responsibility that comes with students' data, how does IXL think about where AI genuinely belongs?"*
+为什么好:把他们的保守立场**预设为智慧**而不是滞后,邀请 Joe 讲他的哲学;你的判断力和公司价值观当场同频。(旧版"AI 接下来会改变什么"隐含"你们该拥抱 AI"的预设,已废弃。)
 
 **P6(半年期待——题库 #22,与 P3 同方向,二选一别都问)**:
 > *"What would you expect from an engineer at my level in the first six months?"*
@@ -224,6 +249,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 | SmartScore 争议等任何产品负面话题 | 铁律一的延伸 |
 | 问 tech stack | 同学原话"没什么好聊的,毕竟 CTO"——层次不匹配 |
 | **主动聊身份/visa** | 内推人首封邮件原话:少在面试阶段聊,offer 之后再沟通;被直接问就一句事实带过,不展开 |
+| **提议 IXL 用 AI 做任何事 / 流露对 AI 保守的惋惜** | Kevin 独家情报:儿童数据 → AI conservative;产品建议禁忌 × AI 谨慎文化双重死区,正确姿态是"谨慎同盟"(6.5 节 G) |
 
 ---
 
@@ -297,9 +323,23 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 - M.S. 2018–2023 与工作重叠 → 按事实一句带过(如是边工作边读:*"I finished my Master's part-time while working full-time."*)
 - "为什么 Capital One 一年半就走?" → **Q11,必背**。
 
-### G. AI 话题 = 你的双向资产
+### G. AI 话题:"谨慎同盟"姿态(Kevin 独家情报后全面修正)
 
-Joe 2026 年必然在想 AI。你有**生产级 LLM 经验**(RAG、agent、25k/day)——他聊 AI 时你不是听众,是同行:讲具体(评估难、幻觉治理、权限),不吹愿景。经验的具体性,比任何 AI 热情宣言都值钱。
+**情报**:Kevin 明说 IXL 对 AI/LLM **比较 conservative**——儿童信息多,不会开放很大的 AI 权限。这翻转了 AI 话题的打法:在别处,你的 LLM 经验是"我能帮你们冲"的筹码;在 IXL,它必须是**"我理解你们为什么慢"的证明**。三层用法:
+
+1. **你的运气:你的 AI 经验本来就是"保守环境版"的**。Capital One 是银行——全行业对 AI 最谨慎的地方之一。你的三个 LLM 项目全是**内部工具**(不碰客户数据路径)、做过权限控制(Slack/GitHub 索引的访问管理)、上线前有评估。台词:
+
+> *"All of my AI work has been inside a bank — probably the only industry as careful about data as education. Everything I shipped was internal-facing, permission-aware, and evaluated before rollout. So IXL's caution with AI doesn't worry me — it reads as exactly right. Kids' data deserves at least the care we give money."*
+
+最后那句 *"kids' data deserves at least the care we give money"* 值得背——一句话把你的银行背景变成教育行业的资格证。
+
+2. **主动说破"AI 不是我的加入条件"**(Kevin 那句话可能也是在管理你的预期——别让任何人担心你入职后因为碰不到 LLM 而失望):
+
+> *"To be clear, AI is a skill I bring, not a requirement I have. The work I'm signing up for is the platform — correctness, reliability, scale. If AI fits somewhere safely, great; if not, the core work is what I came for."*
+
+3. **一次性知识(点到即止)**:COPPA = 美国联邦法,规范对 13 岁以下儿童个人信息的收集;FERPA = 保护学生教育记录的联邦法。若聊到数据责任,说一句 *"COPPA- and FERPA-level constraints"* = 做过功课的信号;**不展开法律细节**(你不是律师,一带而过最安全)。
+
+**AI 话题三雷区**:❌ 主动提议 "IXL 可以用 AI 做 ___"(产品建议禁忌 × AI 谨慎文化,**双重叠加的死区**);❌ 流露对"贵司 AI 保守"的一丝惋惜或优越感;❌ 当 AI 布道者——他们不缺 AI 热情,缺的是敬畏,而敬畏恰好是你从银行带来的东西。
 
 ## 7. 周末准备清单
 
