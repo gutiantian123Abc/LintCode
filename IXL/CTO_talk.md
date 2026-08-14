@@ -39,7 +39,7 @@
 
 | 雷 | 原因 |
 |---|---|
-| **贬损 legacy code**(任何"老代码很烂/该重写"的语气) | 现有 codebase 的早期部分**可能是他亲手写的**——那不是技术债,是他的作品。你的台词:*"legacy code is someone's tested wisdom"*(从加分句升级为保命句) |
+| **贬损 legacy code**(任何"老代码很烂/该重写"的语气) | 现有 codebase 的早期部分**可能是他亲手写的**——那不是技术债,是他的作品。你的台词:*"Old code kept the business running for years — it's earned respect."*(从加分句升级为保命句) |
 | 念他的履历/学校("我看到你是 Berkeley 的") | 研究公司 = 用功;研究个人并说出口 = 越界。UC Berkeley 不主动提 |
 | 吐槽 Oracle 或任何大厂 | 他从 Oracle 来的;你也不吐槽 Capital One——同一条纪律的两面 |
 | 用旧头衔(VP Engineering) | 称呼就是 Joe;头衔场合说 CTO |
@@ -53,7 +53,7 @@
 
 **唯一例外**:Joe **直接**问 "Is there anything you'd improve?" 才启用应急版,三层防护:
 
-> *"As a user I genuinely enjoy it — the immersion method is what makes it different, and TruAccent surprised me with how well it handles pronunciation. One small moment I noticed as a learner: when I couldn't infer a word from the pictures, I sometimes wished for one more contrasting example before moving on. But I'd trust the team's data over my single experience."*
+> *"Honestly, as a user I love it. The immersion method is what makes it special. And the speech feedback surprised me — it's really good. One small thing I remember as a learner: sometimes I couldn't guess a word from the pictures, and I wished for one more example before moving on. But that's just one user's memory — I'd trust your data over my one experience."*
 
 结构:真诚赞(具体到 feature)→ 以"一个学习者的瞬间"降格(不是 recommendation,是 observation)→ 主动把权威交还("你们的数据比我的个例可信")。**绝不出现 "you should / I would change"**。
 
@@ -78,7 +78,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 框架(60 秒):**具体的第一次 → 当时的感受 → 为什么留下来**。要真实、具体到某个时刻,不要"我从小热爱计算机"。
 填入你自己的真实经历,结构参考:
 
-> *"The first time it clicked for me was ____(具体场景:某门课/某个小工具/解决的某个真实问题). What hooked me wasn't the code itself — it was ____(看到它真的跑起来/有人真的用它). I've stayed because backend work keeps giving me that: you build something correct and reliable, and real things depend on it."*
+> *"The first time it really clicked was ____(具体场景:某门课/某个小工具/解决的某个真实问题). What hooked me wasn't the code itself — it was seeing it actually work, and ____(有人真的在用它). I stayed with backend work because I love that feeling: you build something solid, and real things run on it."*
 
 **停止线**:讲完"为什么留下来"就收,不展开职业规划。
 
@@ -86,7 +86,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 答案主线(你的真实优势):可靠性导向的后端工程。
 
-> *"I like the kind of backend work where correctness is non-negotiable. At Capital One that means services where money can't be wrong — so I've gotten deep into concurrency, defensive design, and testing. My favorite moments are finding the invariant that makes a hard problem simple. And I keep gravitating toward building tools for other engineers — the code-review agent, a codegen CLI — because making the whole team faster is the most leveraged thing I know how to do."*
+> *"I like backend work where the code can't be wrong. At Capital One that means money — so I've gone deep on concurrency, defensive design, and testing. My favorite moment is finding the one simple rule — **the invariant** — that makes a hard problem easy. And I keep coming back to building tools for other engineers, like our code-review helper. Making the whole team faster — that's the best use of my time."*
 
 "invariant" 这个词值得说——这两周你真的在用它思考(295 的两条不变量、Score Server 的 seq、账本恒等式)。如果他追问,你有无穷弹药。**最后那句 tools 的兴奋是特意加的**:tools/processes/infrastructure/tuning 是 Joe 官方 bio 的自我描述(见 0.5 节)——你说的是他的母语,但绝口不提你知道这一点。
 
@@ -94,7 +94,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 三点式,每点一句:
 
-> *"Three things. It's **readable** — code is communication with the next engineer, who might be me in six months. It's **tested** — not just happy paths; the tests document what the code promises. And it's **simple** — the least clever solution that's fully correct. If I have to choose, I optimize for the person who has to change it safely later."*
+> *"Three things. **Readable** — code is how I talk to the next engineer. That might be me in six months. **Tested** — the tests show what the code promises. And **simple** — the least clever thing that fully works. If I have to pick one: I write for the person who has to change it later."*
 
 追问弹药:他若问举例——LC 295 的经验直接化用:"分支多的写法每个分支都是雷,零分支的写法把正确性交给结构而不是交给小心"(不点题目名,说思想)。
 
@@ -102,9 +102,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 准备三条,每条 = 原则 + 一句自己的实践:
 
-1. **Correctness first, then speed** — *"State the invariant before writing the code; test against an oracle when one exists."*
-2. **Design for failure** — *"Assume retries, assume concurrency, assume bad input — idempotency and defensive checks aren't extras."*(你的 Score Server/Game Credit 功底)
-3. **Communicate while you build** — *"Narrate design decisions, write code reviews that teach, leave the reasoning in the commit."*(呼应他的 communication 标准)
+1. **Correctness first, then speed** — *"Get it right first, then make it fast. I like to say the rule — the invariant — out loud before I write the code."*
+2. **Design for failure** — *"Assume retries, assume bad input, assume two things happen at once. Safety checks aren't extras."*(你的 Score Server/Game Credit 功底)
+3. **Communicate while you build** — *"Explain your thinking in reviews. Leave the reason in the commit. Code review is teaching."*(呼应他的 communication 标准)
 
 ### Q5. "Tell me about a hard problem you solved."(必深挖,准备 1 主 1 备)
 
@@ -113,45 +113,67 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 - 表层(60 秒 STAR):背景 → 难在哪 → 我做了什么 → 结果(有数字最好)
 - 第二层(每个技术决定的 why):为什么选这个方案?排除了什么?tradeoff 是什么?
 - 第三层(细节):具体怎么实现/怎么测/出过什么岔子/**学到了什么**
-- **诚实红线**:被追问到不懂的层,直接说 *"I haven't gone that deep on that part — my understanding stops at ____."* 装懂在爱追细节的面试官面前必死,诚实 + 好奇是加分姿态。
+- **诚实红线**:被追问到不懂的层,直接说 *"Honestly, I haven't gone that deep on that part."* 装懂在爱追细节的面试官面前必死,诚实 + 好奇是加分姿态。
 
 ### Q6. "What do you want your future team to look like?"
 
 对标 Google 风格工程文化(同学原话),平衡"学"与"给":
 
-> *"A team that takes code review seriously — review as teaching, not gatekeeping. Strong testing culture. People who explain their reasoning and want to hear yours. I want to learn from engineers better than me, and I want my own bar to pull my teammates up too."*
+> *"A team that takes code review seriously — review as teaching, not gatekeeping. A real testing culture. People who explain their thinking, and want to hear mine. I want to learn from engineers better than me — and I want to help pull others up too."*
 
 ### Q7. "Why IXL / why EdTech?"(头号 BQ,大概率出现)
 
 产品叙事 + 工程叙事,**只表达被吸引,零评价**:
 
-> *"For me it's personal. A meaningful part of my English actually came from Rosetta Stone — I used it seriously when I was preparing to come to the U.S. for Georgia Tech. So the mission isn't abstract to me; I'm evidence that these products change trajectories. And the scale is real — one in four U.S. students uses IXL. On the engineering side: at Capital One I build services where correctness is non-negotiable, and Core Technology is that same discipline applied to learning, across the whole family. That combination is why IXL is my first choice."*
+> *"For me it's personal. **A big part of my English actually came from Rosetta Stone** — I used it hard before coming to the U.S. for school. So this mission is not abstract to me. I'm proof it works. And the scale is real — **one in four U.S. students uses IXL**. On the engineering side: at Capital One I build systems where the code can't be wrong. Core Technology is the same discipline — just for learning. That's why **IXL is my first choice**."*
 
 叙事弧线:**个人故事(我是产品的成果)→ 规模(1 in 4,JD 官方数据)→ 手艺(可靠性纪律)→ 承诺(first choice)**。这 40 秒是全场权重最高的一段,背到出口成章。
 
 注意:提到 Rosetta Stone 只说 "I've used it as a learner"——正面兴趣信号,**不接任何评价**。
 
-### Q8. 简历走读(等同学回复确认深度;先按"会挖"准备)
+### Q8. 开场自我介绍(必出,全场第一印象,精确准备)
 
-90 秒版 self-intro:学校 → Capital One 在做什么(一句话系统画像)→ 拿手领域(并发/可靠性/测试)→ 为什么坐在这里。每段简历项目至少准备两层细节。
+**设计思想:布饵,不是设防。** 你无法阻止 Joe 追问(那是他的风格),但 intro 决定他**先追哪里**——说出口的每句话都是一个可追问面,所以:你最强的三个面(doc-sync 可靠性、code-review 工具、教育故事)**主动暴露**;审计型数字和不想开的话题**一个不说**。
+
+**主版本(60–75 秒,背熟)**:
+
+> *"Sure — I'm Will. I studied computer science at Georgia Tech, and I've been building web products for over four years. At Seek Now, my last company, I owned features end to end — Spring Boot backend, Angular front end. Now I'm at Capital One, doing backend work in Java and Spring Boot. It's a bank — **the code just can't be wrong**. So my daily work is testing, defensive design, and tuning. One more thing about me: I love building tools for other engineers. I built a code-review helper and a small codegen tool, because making the team faster is the best use of my time. And why I'm here is personal: **a big part of my English came from Rosetta Stone**. My favorite project at Capital One was a learning tool. So now I want to build for learners full-time. That's the short version."*
+
+**30 秒压缩版**(如果他开场说 "I've read your resume, so just briefly——"):
+
+> *"Sure — I'm a backend engineer at Capital One, Java and Spring Boot. Bank code can't be wrong, so testing and reliability are my world. Before that, I built features end to end — backend through UI. I love building tools for other engineers. And my reason for being here is personal: a big part of my English came from Rosetta Stone. I want to build for learners full-time."*
+
+**逐句布饵图(每句话暴露什么、安不安全)**:
+
+| 句子 | 功能 | 引出的追问 | 判定 |
+|---|---|---|---|
+| Georgia Tech + 4 年 end to end | 资历定位 | 学校/经历概览 | 安全(没给日期,时间线不入场) |
+| Seek Now 前后栈一句 | JD 的 UI 职责实证 | portal 细节 | 安全(6.5-E 备好;没提 480k) |
+| "money can't be wrong… testing, defensive design, and tuning" | 技术契合 + **tuning 是 Joe 的母语** | "讲讲这个服务" | **主动的饵** → 正是你的 Q5 主故事(doc-sync) |
+| tools 那句(code-review assistant + CLI) | **tools 是 Joe 的母语** + quality 价值观投名状 | "code-review assistant 怎么工作的?" | 主动的饵 → 6.5-C 备好;若引到 AI,G 节姿态接住 |
+| Rosetta Stone + 学习工具 + 为学习者 | 文化契合 + 全场难忘点 | "讲讲你用 Rosetta Stone" / why IXL | 主动的饵 → Q10/Q7 全套备好 |
+
+**刻意不说的(数字留在纸上)**:8 个加粗数字一个不出口(36% / 25,000 / 20→8 / 480k……)——**说出的数字必被审计**,让他从简历上自己挑,挑了你有 6.5 节;"AI/LLM" 不作为标签出现(code-review assistant 不带 "AI" 前缀,他问再说,G 节姿态);不提 relocation / 身份 / 学位年份 / OptaPlanner、Cassandra 这类需要三层深度的专有名词。
+
+**交付纪律**:语速放慢;说完最后一句就**停**,微笑,等他接——这个 intro 本身就是"短答风格"的第一次演示,也是 communication 标准的第一次打分。
 
 ### Q9. 杂项可能:working style / 怎么处理分歧 / 怎么学新东西 / location
 
-一律短答 + 具体一例。分歧类答案的安全模板:*"Data and respect — I state my case with evidence, listen for what I'm missing, and commit fully once we decide."*
+一律短答 + 具体一例。分歧类答案的安全模板:*"Data and respect. I make my case with evidence, I listen for what I'm missing — and once we decide, I'm all in."*
 
 **location/relocation 若被提及**(JD 是 San Mateo onsite 岗,你在 Atlanta):干脆无保留——*"Absolutely — I'm ready to relocate to San Mateo."* 一秒都不犹豫,不加条件;犹豫是这轮唯一真正致命的信号。
 
-**跨栈若被提及**(JD 职责含 UI):你有真实弹药,不用泛泛表态——*"I've owned features end-to-end before — Spring Boot APIs plus the Angular UI at Seek Now. Backend is where I'm deepest, but I'd rather own the feature than own a layer."*
+**跨栈若被提及**(JD 职责含 UI):你有真实弹药,不用泛泛表态——*"I've done it before — Spring Boot plus the Angular UI at Seek Now. Backend is my strong side. But **I'd rather own the feature than own a layer**."*
 
 ### Q10. "你用过 Rosetta Stone?讲讲。"(你交给 HR 的信息大概率在他 notes 里——**出现概率上调,必须出声排练**)
 
-> *"Yes — it's genuinely part of my story. When I was preparing to come to the U.S. for Georgia Tech, I used Rosetta Stone seriously — I'd estimate a meaningful share of my English came from it. What worked on me was exactly the design: no translations anywhere, so I had to start thinking in English instead of converting from Chinese, and the speech feedback gave me confidence to actually speak. I'm the kind of user these products are built for — that's a big part of why this role matters to me."*
+> *"Yes — it's a real part of my story. Before I came to the U.S. for school, I used Rosetta Stone seriously. Honestly, a big part of my English came from it. And what worked on me was the design itself: no translations anywhere. So I had to start thinking in English, not translating from Chinese. And the speech practice gave me the confidence to actually talk. **I'm the kind of user you build for** — that's a big reason this role matters to me."*
 
 **守则不变**:全程正面、零建议、不聊任何"要是能……就好了"。只有他**明确**问 "anything you'd improve?" 才启用第 1 节的三层应急版。这一题答好 = 全场最难忘的 45 秒:你不是"对教育感兴趣的候选人",你是**产品亲手教出来的候选人**。
 
 ### Q11. "为什么 Capital One 一年半就想走?"(时间线必然可见,必备)
 
-> *"I'm not leaving something — I'm going toward something. Capital One has been great: production rigor at bank scale, systems where correctness is non-negotiable, and I'm grateful for it. But the pull toward education is real and specific: I'm a Rosetta Stone learner myself, my favorite project at Capital One was literally a learning tool — the knowledge assistant — and IXL is where all of that points. This is a deliberate move, not an escape."*
+> *"**I'm not running away from Capital One — I'm running toward something.** Capital One taught me to build carefully, at bank standards, and I'm grateful for that. But my pull toward education is real and specific: Rosetta Stone taught me English. My favorite project was a learning tool. IXL is where all of that points. **This is a choice, not an escape.**"*
 
 红线:**不说 Capital One 一个坏字**;"toward, not away" 是整段的骨架。
 
@@ -165,17 +187,17 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 ### 主用
 
 **P1(Core Tech × 多品牌战略——双重认证:Kevin 的"产品具体" + 同学几乎原话推荐)**:
-> *"With the family growing — IXL, Rosetta Stone, TPT, and now MyTutor as the first international acquisition — how does Core Technology think about shared platform versus per-product infrastructure? What's the direction there?"*
+> *"The family keeps growing — IXL, Rosetta Stone, TPT, now MyTutor, the first international one. How does Core Technology handle that? One shared platform, or separate infrastructure for each brand? And where is it heading?"*
 为什么好:同学的例子和这题几乎一字不差;点出 MyTutor 是"**第一次海外收购**"= 你连最新动态都做了功课;这是 Joe 每天在想的问题。
 **背景知识使用规则**:内推人提到的内部融合项目(Vocabulary.com/ABCya 整合进 IXL)**只做你理解答案的背景,不要当成自己的发现说出口**——如果 Joe 聊到融合方向,你自然接住即可;若被问"你怎么了解这么多",大方说 *"I did my research, and a friend at IXL has told me great things"*(你是正式内推,提朋友完全合法)。
 
 **P2(Rosetta Stone 方向——Kevin 的"某个具体产品的方向、未来"点名形态)**:
-> *"I've been a Rosetta Stone user, so I'm genuinely curious: with conversational AI moving so fast, how do you think about evolving the immersion method? What's the long-term vision for language learning at IXL?"*
+> *"I've been a Rosetta Stone user, so I'm really curious — with conversational AI moving so fast, how do you think about the future of the immersion method? What's the long-term vision for language learning here?"*
 为什么好:具体产品 + 未来方向 + "user" 身份表达真实兴趣,零评价。
 **禁忌变体(长这样的一律不问)**:~~"What would you improve about Rosetta Stone?"~~ ——邀请自己发表产品意见的自杀问法。
 
 **P3(进组做什么——同学直接建议的"fit"问题,收官用)**:
-> *"If I joined Core Technology, what kinds of projects would an engineer with my background likely take on in the first year — and which of them matter most to where the platform is heading?"*
+> *"If I join Core Technology, what would an engineer like me work on in the first year? And which of those projects matter most for where the platform is going?"*
 为什么好:同学原话"问问你之后进去组有什么事比较适合你的";隐含承诺信号(已经在想象入职),又把话题交回他手里。
 
 ### 备用(时间富余或气氛引导时用,按序)
@@ -185,7 +207,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 语气要点:"挑战 = 有意思的问题",纯好奇,不是"你们哪里不行"。
 
 **P5(AI × 责任——按 Kevin "AI 保守"情报重写)**:
-> *"A lot of edtech is racing to add AI everywhere. Given the responsibility that comes with students' data, how does IXL think about where AI genuinely belongs?"*
+> *"A lot of edtech is racing to add AI everywhere. With students' data involved, how does IXL decide where AI actually belongs?"*
 为什么好:把他们的保守立场**预设为智慧**而不是滞后,邀请 Joe 讲他的哲学;你的判断力和公司价值观当场同频。(旧版"AI 接下来会改变什么"隐含"你们该拥抱 AI"的预设,已废弃。)
 
 **P6(半年期待——题库 #22,与 P3 同方向,二选一别都问)**:
@@ -195,7 +217,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 > *"What advice would you give an engineer at the start of their career at IXL?"*
 Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不掉价。
 
-**P8(个人视角——题库 #3/#23 合体)**:*"You've been building this for a long time — what's kept it interesting for you?"*
+**P8(个人视角——题库 #3/#23 合体)**:*"You've been building this for a long time — what keeps it interesting for you?"*
 
 ### 不问清单(提问区专属红线)
 
@@ -230,7 +252,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 | 0–3 | 寒暄 + self-intro | 90 秒版,微笑,能量适中 |
 | 3–20 | 他问你(Q1–Q9 池子) | **短答 → 等追问 → 再展开一层**;他讲话时认真听 |
 | 20–27 | "Any questions for me?" | P1 → P2(→P3),每个答案认真听 + 自然跟进半句 |
-| 27–30 | 收尾 | 一句:*"This conversation made me even more excited about the role — thank you for the time."* 不加码 |
+| 27–30 | 收尾 | 一句:*"Thanks — this made me even more excited about the role."* 不加码 |
 
 ---
 
@@ -269,7 +291,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 | JD 原文 | 回声位置 |
 |---|---|
 | *testing, debugging, and tuning* | Q4/Q5——你的测试意识和性能改进故事,JD 明文要的就是这个 |
-| *starting from scratch and working within the existing code base* | Q2 可加一句:两种都喜欢——旧代码是"someone's tested wisdom",从零建是"设计不变量的机会" |
+| *starting from scratch and working within the existing code base* | Q2 可加一句:两种都喜欢——旧代码 *"old code kept the business running — it's earned respect"*,从零建是"设计不变量的机会" |
 | *collaborate across multiple development teams* | Q6 团队答案;cooperation 标准同款 |
 | *accurate estimates, evaluate feasibility* | 难题故事里若有估算/取舍决策,点一下这层 |
 | *passion for improving education through technology* | why IXL——注意这句在 JD 里是**硬性要求**,不是装饰 |
@@ -293,7 +315,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 
 ### B. Capital One · knowledge assistant(25,000 queries/day)
 
-**教育桥(你的专属叙事资产)**:这条 bullet 的结尾是 "accelerating new-hire onboarding and **learning**"——你在银行里已经造过一个**学习工具**。一句桥,可织进 Q2 或 why-IXL 的追问:*"My favorite project at Capital One is literally a learning product — that's part of how I realized I want to build for learners full-time."*
+**教育桥(你的专属叙事资产)**:这条 bullet 的结尾是 "accelerating new-hire onboarding and **learning**"——你在银行里已经造过一个**学习工具**。一句桥,可织进 Q2 或 why-IXL 的追问:*"Funny thing — my favorite project at Capital One was a learning tool. That's when I realized: I want to do this full-time, for real learners."*
 
 | 预测追问 | 你要备好的 |
 |---|---|
@@ -310,7 +332,7 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 
 ⚠️ **全简历最容易被挑战的数字**(14.5 倍)。必须主动拆解,别等他皱眉:
 
-> *"To be clear about that number: the engine didn't do that alone. Before, scheduling was manual — that capped how many cases the company could take. Automation removed the cap, the business scaled the field team, and throughput compounded. My engine was the unlock, not the whole multiplier."*
+> *"Let me be fair about that number — the engine didn't do it alone. Before, scheduling was done by hand. That capped how much work the company could take. My engine removed the cap. Then the business grew the field team, and the numbers multiplied together. **I built the unlock, not the whole multiplier.**"*
 
 诚实拆解 = 全简历可信度上升;含糊 = 整份简历打折。其他追问:OptaPlanner 的约束和目标函数是什么;实时数据源(天气/交通)挂了怎么降级。
 
@@ -329,13 +351,13 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 
 1. **你的运气:你的 AI 经验本来就是"保守环境版"的**。Capital One 是银行——全行业对 AI 最谨慎的地方之一。你的三个 LLM 项目全是**内部工具**(不碰客户数据路径)、做过权限控制(Slack/GitHub 索引的访问管理)、上线前有评估。台词:
 
-> *"All of my AI work has been inside a bank — probably the only industry as careful about data as education. Everything I shipped was internal-facing, permission-aware, and evaluated before rollout. So IXL's caution with AI doesn't worry me — it reads as exactly right. Kids' data deserves at least the care we give money."*
+> *"All my AI work happened inside a bank — probably the only industry as careful with data as education. Everything I shipped was internal, permission-controlled, and tested before rollout. So IXL being careful with AI doesn't worry me at all. It feels right. **Kids' data deserves the same care we give money.**"*
 
 最后那句 *"kids' data deserves at least the care we give money"* 值得背——一句话把你的银行背景变成教育行业的资格证。
 
 2. **主动说破"AI 不是我的加入条件"**(Kevin 那句话可能也是在管理你的预期——别让任何人担心你入职后因为碰不到 LLM 而失望):
 
-> *"To be clear, AI is a skill I bring, not a requirement I have. The work I'm signing up for is the platform — correctness, reliability, scale. If AI fits somewhere safely, great; if not, the core work is what I came for."*
+> *"To be clear — **AI is a skill I bring, not a thing I need.** The job I want is the platform: correctness, reliability, scale. If AI fits somewhere safely, great. If not, the core work is what I came for."*
 
 3. **一次性知识(点到即止)**:COPPA = 美国联邦法,规范对 13 岁以下儿童个人信息的收集;FERPA = 保护学生教育记录的联邦法。若聊到数据责任,说一句 *"COPPA- and FERPA-level constraints"* = 做过功课的信号;**不展开法律细节**(你不是律师,一带而过最安全)。
 
@@ -344,7 +366,7 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 ## 7. 周末准备清单
 
 **周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(建议用 doc-sync,三层!)的真实版本;② why IXL 终稿(含 Rosetta Stone 个人故事)+ Q10 + Q11 背熟;③ P1–P3 问题背熟;④ **过一遍 6.5 节数字自检**——简历上 8 个加粗数字(36% / 25,000 / 20→8 / 30→11 / 33k→480k / 3→2 周 / 2h→3min / 1,000+),每个写下口径、测法、份额三行;⑤ 扫 IXL 官方 blog + MyTutor 收购新闻(30 分钟封顶)。
-**周日(练交付)**:① 出声排练全部短答,**计时 45 秒,练"停"**;② 模拟追问(可以来找我,我扮 Joe 按他的风格追问细节);③ 同学回复后更新第 0/5 节。
+**周日(练交付)**:① 出声排练全部短答,**计时 45 秒,练"停"**;② 模拟追问(喊我 mock,我扮 Joe 按他的风格追问细节);③ **忘词规则**:台词是护栏不是圣经——卡住就用更短的词把意思说完,**永远不要为了想起"原句"而卡住**;④ **五个锚句逐字背**(全场唯一需要一字不差的东西):*"The code just can't be wrong."* / *"Kids' data deserves the same care we give money."* / *"AI is a skill I bring, not a thing I need."* / *"I'd rather own the feature than own a layer."* / *"This is a choice, not an escape."*
 **周一**:① 白天正常上班,晚饭吃好;② 6:00 设备检查(摄像头/麦克/网络/安静房间);③ 6:15 扫第 5 节红线清单;④ 6:25 进 Meet 等待。
 
 **一句话心法**:VO 证明了你会做;这 30 分钟证明你**懂分寸、有品味、真心想来**。少说,听好,问准——收官。
