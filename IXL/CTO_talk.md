@@ -17,7 +17,7 @@
 | B | 官方 JD | **San Mateo HQ onsite 岗**(你在 Atlanta,简历已印 "Open to relocation to the San Francisco Bay Area" → 话题若出现,答干脆的 yes);**Java 被点名**;3+ 年经验;*"Passion for improving education through technology"* 是**明文硬性要求**;职责原文:back-end wiring + application logic + **UI**、from scratch 与 existing code base 并重、design/coding/documenting/**testing**/debugging/**tuning**、跨多团队协作、估算与可行性评估;引用级数据:**1 in 4 美国学生用 IXL**、Rosetta Stone 25 种语言、Wyzant 全美最大 tutor 社区(300+ 科目);文化词:collaboration、kindness and respect、passion/tenacity/authenticity;薪资带 $116–150k(**offer 阶段的知识,周一绝不提**) |
 | A | 你自己交出的信息 | 你已告诉 HR 两件事:①**"我约 50% 的英语是用 Rosetta Stone 学的"**(→ Joe 主动聊 Rosetta Stone 概率上调,见 Q10);②**妻子刚拿到湾区 offer,我们要搬去湾区**(→ 这是"why now"的王牌:一次性打掉"为何才一年半就走"和"真会搬吗"两大疑点,但**只能当时机层,不能当选择层**,见 Q11 v2)。最新简历已提交,每个加粗数字都是追问按钮(6.5 节) |
 | B | Joe 官方 bio + 公开履历 | 官网原文:*"particularly interested in **tools, processes, infrastructure, and tuning**"*;Oracle applications division 工程师出身;IXL **早期亲手搭建 codebase 与服务器基础设施**(builder 型,VP Eng 一路升到 CTO,管研发 + 技术运维);UC Berkeley CS;CEO Mishkin 同为工程师出身——全公司 builder 文化(详见 0.5 节) |
-| A | 你的补充素材(未上简历) | **2025 年在 Martin Luther King Jr. High School(Atlanta 公立高中)志愿教了两学期编程**——MIT App Inventor,孩子们做小游戏;**Georgia Tech 多学期 mentor**。→ 全场唯一的"行动证据"级 culture fit 素材,补齐 Learner→Teacher→Builder 的完整圆(见 Q12) |
+| A | 你的补充素材(未上简历) | **2025 年在 Martin Luther King Jr. High School(Atlanta 公立高中,学生多来自低收入家庭——选校原因)志愿教了两学期编程**——MIT App Inventor,孩子们做小游戏;**Georgia Tech 多学期 mentor**。→ 全场唯一的"行动证据"级 culture fit 素材,补齐 Learner→Teacher→Builder 完整圆(Q12);深层 = 机会差距叙事(Q12b,**注意语言红线:exposure 不是 ability**) |
 | A | Kevin(AI 专条) | **IXL 对 AI/LLM 的使用比较 conservative**——产品涉及大量儿童信息,可能无法给很大的 AI 使用权限 → AI 话题的正确姿态全面翻转:从"我能帮你们冲"改为"我理解你们为什么慢"(完整修正见 6.5 节 G) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
 
@@ -202,6 +202,23 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 - **谦逊框架**:你是志愿者不是教师,别把两学期说成教育资历——*"I'm not a teacher — but those two semesters taught me a lot about how learning actually happens."* 这句收尾同时完成谦逊 + 洞察两件事。
 
 **App Inventor 那句是隐藏的产品思维弹**:"blocks, not syntax — meet them where they are" 和 IXL 的自适应哲学(Real-Time Diagnostic)同源,Joe 若接这个话头,你就自然聊到了他们的产品理念——从你的故事走进他的产品,全场最优雅的一条路径。
+
+### Q12b. 深层追问:"为什么选那所学校 / 你从中学到什么?"(故事的情感核心)
+
+MLK 的孩子大多来自低收入家庭——这是你选那里的原因,也是这个故事最有力量的一层。60 秒版:
+
+> *"I picked that school on purpose — most of the kids come from low-income families. And here's what I saw: **they're just as sharp as anyone**. What they were missing wasn't ability — it was **exposure**. Most of them had never written a line of code. Nobody had ever shown them. And when someone finally did, they lit up like any kid anywhere. That's when the power of education became real to me. Here's the thing — **a great learning tool matters most for exactly these kids**. Kids at rich schools have tutors and coaches. These kids have what the school gives them. Give them a great tool, and their path genuinely changes. And I know that feeling from the other side — I was an English learner once, and a product changed my path. That's the work I want to do."*
+
+**⚠️ 语言红线(比内容更重要,先背这张表)**:
+
+| ❌ 永不出口 | ✅ 替换为 |
+|---|---|
+| *"their mental capability is lower"* 及一切 ability/intelligence 比较 | *"just as sharp — what they were missing was **exposure**, not ability"* |
+| *"far below elite school kids"* | *"they'd just been given less — fewer chances, fewer people showing them things"* |
+| 概念定名 | 说 **opportunity gap / exposure gap / access gap**,永不说 ability gap |
+| 救世主音调("我去帮助穷孩子") | *"I picked it on purpose — and honestly, I got more from them than they got from me."* |
+
+**这层与 IXL 的锁扣**:"工具在资源最少的孩子身上边际效应最大" = IXL 卖给公立学区、1 in 4 学生的整个存在理由——你不是在讲情怀,你是在陈述他们的商业与使命论点,只是你有亲眼见过的版本。**双侧对称**是收尾王牌:学的一侧(ELL 的你 + Rosetta Stone)、教的一侧(MLK 的孩子们 + 你),机会差距的两边你都站过——这句一出,全场没有第二个候选人能跟。
 
 ---
 
