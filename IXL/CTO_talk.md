@@ -17,6 +17,7 @@
 | B | 官方 JD | **San Mateo HQ onsite 岗**(你在 Atlanta,简历已印 "Open to relocation to the San Francisco Bay Area" → 话题若出现,答干脆的 yes);**Java 被点名**;3+ 年经验;*"Passion for improving education through technology"* 是**明文硬性要求**;职责原文:back-end wiring + application logic + **UI**、from scratch 与 existing code base 并重、design/coding/documenting/**testing**/debugging/**tuning**、跨多团队协作、估算与可行性评估;引用级数据:**1 in 4 美国学生用 IXL**、Rosetta Stone 25 种语言、Wyzant 全美最大 tutor 社区(300+ 科目);文化词:collaboration、kindness and respect、passion/tenacity/authenticity;薪资带 $116–150k(**offer 阶段的知识,周一绝不提**) |
 | A | 你自己交出的信息 | 你已告诉 HR 两件事:①**"我约 50% 的英语是用 Rosetta Stone 学的"**(→ Joe 主动聊 Rosetta Stone 概率上调,见 Q10);②**妻子刚拿到湾区 offer,我们要搬去湾区**(→ 这是"why now"的王牌:一次性打掉"为何才一年半就走"和"真会搬吗"两大疑点,但**只能当时机层,不能当选择层**,见 Q11 v2)。最新简历已提交,每个加粗数字都是追问按钮(6.5 节) |
 | B | Joe 官方 bio + 公开履历 | 官网原文:*"particularly interested in **tools, processes, infrastructure, and tuning**"*;Oracle applications division 工程师出身;IXL **早期亲手搭建 codebase 与服务器基础设施**(builder 型,VP Eng 一路升到 CTO,管研发 + 技术运维);UC Berkeley CS;CEO Mishkin 同为工程师出身——全公司 builder 文化(详见 0.5 节) |
+| A | 你的补充素材(未上简历) | **2025 年在 Martin Luther King Jr. High School(Atlanta 公立高中)志愿教了两学期编程**——MIT App Inventor,孩子们做小游戏;**Georgia Tech 多学期 mentor**。→ 全场唯一的"行动证据"级 culture fit 素材,补齐 Learner→Teacher→Builder 的完整圆(见 Q12) |
 | A | Kevin(AI 专条) | **IXL 对 AI/LLM 的使用比较 conservative**——产品涉及大量儿童信息,可能无法给很大的 AI 使用权限 → AI 话题的正确姿态全面翻转:从"我能帮你们冲"改为"我理解你们为什么慢"(完整修正见 6.5 节 G) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
 
@@ -119,7 +120,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 对标 Google 风格工程文化(同学原话),平衡"学"与"给":
 
-> *"A team that takes code review seriously — review as teaching, not gatekeeping. A real testing culture. People who explain their thinking, and want to hear mine. I want to learn from engineers better than me — and I want to help pull others up too."*
+> *"A team that takes code review seriously — review as teaching, not gatekeeping. A real testing culture. People who explain their thinking, and want to hear mine. I want to learn from engineers better than me — and I want to help pull others up too. I mentored at Georgia Tech for several semesters — I like being the person people feel safe asking."*
 
 ### Q7. "Why IXL / why EdTech?"(头号 BQ,大概率出现)
 
@@ -137,7 +138,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 **主版本(60–75 秒,背熟)**:
 
-> *"Sure — I'm Will. I studied computer science at Georgia Tech, and I've been building web products for over four years. At Seek Now, my last company, I owned features end to end — Spring Boot backend, Angular front end. Now I'm at Capital One, doing backend work in Java and Spring Boot. It's a bank — **the code just can't be wrong**. So my daily work is testing, defensive design, and tuning. One more thing about me: I love building tools for other engineers. I built a code-review helper and a small codegen tool, because making the team faster is the best use of my time. And why I'm here is personal: **a big part of my English came from Rosetta Stone**. My favorite project at Capital One was a learning tool. So now I want to build for learners full-time. That's the short version."*
+> *"Sure — I'm Will. I studied computer science at Georgia Tech, and I've been building web products for over four years. At Seek Now, my last company, I owned features end to end — Spring Boot backend, Angular front end. Now I'm at Capital One, doing backend work in Java and Spring Boot. It's a bank — **the code just can't be wrong**. So my daily work is testing, defensive design, and tuning. One more thing about me: I love building tools for other engineers. I built a code-review helper and a small codegen tool, because making the team faster is the best use of my time. And why I'm here is personal: **a big part of my English came from Rosetta Stone**. Last year I taught kids to code at a local high school, two semesters. And my favorite project at Capital One was a learning tool. **Learner, teacher, builder** — so now I want to build for learners full-time. That's the short version."*
 
 **30 秒压缩版**(如果他开场说 "I've read your resume, so just briefly——"):
 
@@ -151,7 +152,7 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 | Seek Now 前后栈一句 | JD 的 UI 职责实证 | portal 细节 | 安全(6.5-E 备好;没提 480k) |
 | "money can't be wrong… testing, defensive design, and tuning" | 技术契合 + **tuning 是 Joe 的母语** | "讲讲这个服务" | **主动的饵** → 正是你的 Q5 主故事(doc-sync) |
 | tools 那句(code-review assistant + CLI) | **tools 是 Joe 的母语** + quality 价值观投名状 | "code-review assistant 怎么工作的?" | 主动的饵 → 6.5-C 备好;若引到 AI,G 节姿态接住 |
-| Rosetta Stone + 学习工具 + 为学习者 | 文化契合 + 全场难忘点 | "讲讲你用 Rosetta Stone" / why IXL | 主动的饵 → Q10/Q7 全套备好 |
+| Rosetta Stone + 教书 + 学习工具("Learner, teacher, builder") | 文化契合 + 全场难忘点 | "讲讲你用 Rosetta Stone" / "你教书?讲讲" / why IXL | 主动的饵 → Q10/Q12/Q7 全套备好 |
 
 **刻意不说的(数字留在纸上)**:8 个加粗数字一个不出口(36% / 25,000 / 20→8 / 480k……)——**说出的数字必被审计**,让他从简历上自己挑,挑了你有 6.5 节;"AI/LLM" 不作为标签出现(code-review assistant 不带 "AI" 前缀,他问再说,G 节姿态);不提 relocation / 身份 / 学位年份 / OptaPlanner、Cassandra 这类需要三层深度的专有名词。
 
@@ -186,6 +187,21 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 为什么这个版本更强:① 家庭搬迁让"一年半就走"变得完全正常——没人追问一个家庭团聚的决定;② relocation 疑虑同时消失——你不是"愿意搬",你是"**本来就要搬**",而且妻子的事业也在那里 → 你会来、更会**留下**,这是他们最想要的 retention 信号;③ "搬家已定,在湾区选哪家才是真正的选择"——这让 first choice **更可信**,因为它发生在真实的人生决策里。
 
 红线:**不说 Capital One 一个坏字**;**"催我/赶快/尽快需要工作"这类紧迫感词汇永远不出口**(紧迫 = 议价能力下降 + "随便什么湾区工作都行"的错误信号);你已告诉过 HR 此事,**口径必须一致**——Joe 若主动提("听说你要搬来湾区"),温暖确认一句,立刻接选择层。
+
+### Q12. 教书故事(你最强的 culture fit 证据,45 秒版)
+
+**定位**:每个候选人都"说"热爱教育,你是"做"过的——两学期、真实的公立高中、真实的孩子。出场时机:Joe 追问 why education、问工作之外的你、或被 intro 里 "Learner, teacher, builder" 那句钓到。
+
+> *"Last year I volunteered at a public high school here in Atlanta — MLK Jr. High — teaching kids to code. Two semesters. We used MIT App Inventor: blocks, not syntax. Because the goal wasn't to memorize semicolons — it was for them to feel **'I made this.'** They built small games. And the moment that stuck with me: ____(填一个真实瞬间:某个学生的游戏第一次跑起来时的样子). That's when learning clicks — you make something, and it works. That feedback loop, at scale, is what IXL builds. I want to work on that."*
+
+**周六作业**:把 ____ 填成一个**具体的真实瞬间**(哪个学生、什么游戏、他/她说了什么或什么表情)——这 10 秒的具体性决定整个故事的可信度。
+
+**三个配套预案**:
+- "怎么挤出时间的?" → 按事实一句(周末/晚上志愿),顺带就是 commitment 的证据;
+- "简历上没写?" → *"It was volunteering — I kept the resume to engineering work."* 完全正常;
+- **谦逊框架**:你是志愿者不是教师,别把两学期说成教育资历——*"I'm not a teacher — but those two semesters taught me a lot about how learning actually happens."* 这句收尾同时完成谦逊 + 洞察两件事。
+
+**App Inventor 那句是隐藏的产品思维弹**:"blocks, not syntax — meet them where they are" 和 IXL 的自适应哲学(Real-Time Diagnostic)同源,Joe 若接这个话头,你就自然聊到了他们的产品理念——从你的故事走进他的产品,全场最优雅的一条路径。
 
 ---
 
@@ -376,7 +392,7 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 
 ## 7. 周末准备清单
 
-**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(建议用 doc-sync,三层!)的真实版本;② why IXL 终稿(含 Rosetta Stone 个人故事)+ Q10 + Q11 背熟;③ P1–P3 问题背熟;④ **过一遍 6.5 节数字自检**——简历上 8 个加粗数字(36% / 25,000 / 20→8 / 30→11 / 33k→480k / 3→2 周 / 2h→3min / 1,000+),每个写下口径、测法、份额三行;⑤ 扫 IXL 官方 blog + MyTutor 收购新闻(30 分钟封顶)。
+**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(建议用 doc-sync,三层!)的真实版本;② why IXL 终稿(含 Rosetta Stone 个人故事)+ Q10 + Q11 + **Q12 教书故事(重点:填真实瞬间)** 背熟;③ P1–P3 问题背熟;④ **过一遍 6.5 节数字自检**——简历上 8 个加粗数字(36% / 25,000 / 20→8 / 30→11 / 33k→480k / 3→2 周 / 2h→3min / 1,000+),每个写下口径、测法、份额三行;⑤ 扫 IXL 官方 blog + MyTutor 收购新闻(30 分钟封顶)。
 **周日(练交付)**:① 出声排练全部短答,**计时 45 秒,练"停"**;② 模拟追问(喊我 mock,我扮 Joe 按他的风格追问细节);③ **忘词规则**:台词是护栏不是圣经——卡住就用更短的词把意思说完,**永远不要为了想起"原句"而卡住**;④ **五个锚句逐字背**(全场唯一需要一字不差的东西):*"The code just can't be wrong."* / *"Kids' data deserves the same care we give money."* / *"AI is a skill I bring, not a thing I need."* / *"I'd rather own the feature than own a layer."* / *"This is a choice, not an escape."*
 **周一**:① 白天正常上班,晚饭吃好;② 6:00 设备检查(摄像头/麦克/网络/安静房间);③ 6:15 扫第 5 节红线清单;④ 6:25 进 Meet 等待。
 
