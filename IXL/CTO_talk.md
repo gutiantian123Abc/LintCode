@@ -18,6 +18,7 @@
 | A | 你自己交出的信息 | 你已告诉 HR 两件事:①**"我约 50% 的英语是用 Rosetta Stone 学的"**(→ Joe 主动聊 Rosetta Stone 概率上调,见 Q10);②**妻子刚拿到湾区 offer,我们要搬去湾区**(→ 这是"why now"的王牌:一次性打掉"为何才一年半就走"和"真会搬吗"两大疑点,但**只能当时机层,不能当选择层**,见 Q11 v2)。最新简历已提交,每个加粗数字都是追问按钮(6.5 节) |
 | B | Joe 官方 bio + 公开履历 | 官网原文:*"particularly interested in **tools, processes, infrastructure, and tuning**"*;Oracle applications division 工程师出身;IXL **早期亲手搭建 codebase 与服务器基础设施**(builder 型,VP Eng 一路升到 CTO,管研发 + 技术运维);UC Berkeley CS;CEO Mishkin 同为工程师出身——全公司 builder 文化(详见 0.5 节) |
 | A | 你的补充素材(未上简历) | **2025 年在 Martin Luther King Jr. High School(Atlanta 公立高中,学生多来自低收入家庭——选校原因)志愿教了两学期编程**——MIT App Inventor,孩子们做小游戏;**Georgia Tech 多学期 mentor**。→ 全场唯一的"行动证据"级 culture fit 素材,补齐 Learner→Teacher→Builder 完整圆(Q12);深层 = 机会差距叙事(Q12b,**注意语言红线:exposure 不是 ability**) |
+| B | 1p3a 高管轮面经批次(多帖) | ① **"top 3 engineering principles" 是 VP/CTO/Director 轮的标准题**(多帖独立证实,常点名要三条)→ Q4 升级为近乎必考;② **commitment 陷阱有真实死者**:VP 轮后 HR 套话 return offer,候选人答含糊被拒——"非他们不可"纪律适用于**所有 HR 触点**;③ **技术优越感死者**:嫌"公司技术不与时俱进"的候选人自判挂 culture fit;④ **"Have you used IXL products?" 被直接问过**,答"没用过"引发面试官当场不满(→ Q14 + 周末上手 IXL.com);⑤ 有人在 IXL 面试"大谈 TA 经历"被善待 → Q12 方向证实;⑥ 新变体:enjoy/not enjoy teamwork(Q13)、why **online** education;⑦ 面试官可能全程扑克脸,无反应≠失败;⑧ 每个面试官都可能再问一遍 why IXL,面完 HR 可能 hop on 再聊——口径一致到底 |
 | A | Kevin(AI 专条) | **IXL 对 AI/LLM 的使用比较 conservative**——产品涉及大量儿童信息,可能无法给很大的 AI 使用权限 → AI 话题的正确姿态全面翻转:从"我能帮你们冲"改为"我理解你们为什么慢"(完整修正见 6.5 节 G) |
 | A | 内推同学(第二轮回复) | **做自己就行,想问什么都可以**;简历深挖有可能,但**大概率是很 general 的 BQ**;提问**多问 strategy**(他举的例子:Core Tech 在公司进程里怎么支持 IXL 的多个 brand;进组后什么工作适合你);**别问 tech stack**——跟 CTO 没什么好聊的;**Joe 技术很厉害** |
 
@@ -99,9 +100,9 @@ Kevin 的原话画像:想象一个**对一切产品了如指掌、干了很多�
 
 追问弹药:他若问举例——LC 295 的经验直接化用:"分支多的写法每个分支都是雷,零分支的写法把正确性交给结构而不是交给小心"(不点题目名,说思想)。
 
-### Q4. "What are good engineering principles?"
+### Q4. "What are your top 3 engineering principles?"(⚠️ 高管轮标准题,近乎必考)
 
-准备三条,每条 = 原则 + 一句自己的实践:
+多条面经独立证实:VP、CTO、Director 轮**反复问这道题,且常点名要 "top 3"**。你的三条恰好是三条——按编号背到反射级,开口第一句就是 *"Three."*(直接给结构,也演示 communication):
 
 1. **Correctness first, then speed** — *"Get it right first, then make it fast. I like to say the rule — the invariant — out loud before I write the code."*
 2. **Design for failure** — *"Assume retries, assume bad input, assume two things happen at once. Safety checks aren't extras."*(你的 Score Server/Game Credit 功底)
@@ -220,6 +221,28 @@ MLK 的孩子大多来自低收入家庭——这是你选那里的原因,也是
 
 **这层与 IXL 的锁扣**:"工具在资源最少的孩子身上边际效应最大" = IXL 卖给公立学区、1 in 4 学生的整个存在理由——你不是在讲情怀,你是在陈述他们的商业与使命论点,只是你有亲眼见过的版本。**双侧对称**是收尾王牌:学的一侧(ELL 的你 + Rosetta Stone)、教的一侧(MLK 的孩子们 + 你),机会差距的两边你都站过——这句一出,全场没有第二个候选人能跟。
 
+顺带:"why **online** education?" 这个变体(面经出现过)就用这层答:*"Online is how great teaching reaches kids who don't have tutors. A classroom scales to thirty kids. A great tool scales to millions — including the kids who need it most."*
+
+### Q13. "A time you enjoyed / did NOT enjoy teamwork"(1p3a VP 轮实锤,成对准备)
+
+**Enjoy 版**(用 Seek Now 的跨职能协作):
+
+> *"The route-optimization project. Product, operations, and I met every week. Ops told us what broke in the field, we shipped fixes fast, and you could watch the schedule get better sprint by sprint. That's the teamwork I enjoy: short loop, shared goal, and everyone's expertise counts."*
+
+**Not-enjoy 版**(安全模式:**怪流程,不怪人;结尾我修好了它**):
+
+> *"Early in one project, two of us accidentally built overlapping features — nobody's fault, ownership just wasn't clear. I didn't enjoy watching effort get wasted. So I raised it, we set up a short weekly sync and a simple ownership doc, and it didn't happen again. My takeaway: most teamwork pain is a **process gap, not a people problem**."*
+
+最后那句 "process gap, not a people problem" 会直接命中 Joe 的 processes 兴趣。红线:not-enjoy 版**永远不指向具体的人**,永远以"我做了什么修复"收尾。
+
+### Q14. "Have you used our products?"(1p3a 实锤:有人答"没用过"引发面试官当场不满)
+
+你有全场最好的答案,但注意问的可能是 IXL.com 本身——所以答案分两层,且**周末必须真的上手 IXL.com**(见周六清单):
+
+> *"Two ways. Rosetta Stone — seriously, for years. A big part of my English came from it. And IXL itself — I'm not a K-12 student, so I went hands-on as part of my research: I tried some practice skills myself to see how the feedback loop works. You can feel the pedagogy in it."*
+
+守则:上手后的观察**只说正面的**(流畅、即时反馈、题目自适应之类),不带任何 "could be better"——产品建议禁忌覆盖此处。
+
 ---
 
 ## 3. 你问 Joe 的问题库(重头戏,Kevin 单独点名)
@@ -316,6 +339,8 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 | **主动聊身份/visa** | 内推人首封邮件原话:少在面试阶段聊,offer 之后再沟通;被直接问就一句事实带过,不展开 |
 | **提议 IXL 用 AI 做任何事 / 流露对 AI 保守的惋惜** | Kevin 独家情报:儿童数据 → AI conservative;产品建议禁忌 × AI 谨慎文化双重死区,正确姿态是"谨慎同盟"(6.5 节 G) |
 | **把搬家说成找 IXL 的原因 / 流露"急着找工作"** | 妻子 offer 只当"why now"层;说成"why IXL"= 地理顺路,毁掉 first choice 叙事;紧迫感词汇伤谈判力(Q11 v2) |
+| **任何"你们技术该现代化"的气味**(嫌 stack 旧、推荐新框架、"为什么不用 X") | 1p3a 实锤死者:自感"公司技术不与时俱进"的候选人挂在 culture fit——面试官闻得到这股劲 |
+| **在任何 HR 触点上对承诺含糊**(包括周一面完后的电话) | 1p3a 实锤死者:VP 轮后被 HR 套话 return offer,一句含糊 = ghost + 拒。任何时点被问,答案永远是那句:*"IXL is my first choice — if the offer comes, I'm accepting it."* |
 
 ---
 
@@ -409,7 +434,7 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 
 ## 7. 周末准备清单
 
-**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(建议用 doc-sync,三层!)的真实版本;② why IXL 终稿(含 Rosetta Stone 个人故事)+ Q10 + Q11 + **Q12 教书故事(重点:填真实瞬间)** 背熟;③ P1–P3 问题背熟;④ **过一遍 6.5 节数字自检**——简历上 8 个加粗数字(36% / 25,000 / 20→8 / 30→11 / 33k→480k / 3→2 周 / 2h→3min / 1,000+),每个写下口径、测法、份额三行;⑤ 扫 IXL 官方 blog + MyTutor 收购新闻(30 分钟封顶)。
+**周六(填内容)**:① 写出 Q1 起源故事、Q5 难题故事(建议用 doc-sync,三层!)的真实版本;② why IXL 终稿(含 Rosetta Stone 个人故事)+ Q10 + Q11 + **Q12 教书故事(重点:填真实瞬间)** 背熟;③ P1–P3 问题背熟;④ **过一遍 6.5 节数字自检**——简历上 8 个加粗数字(36% / 25,000 / 20→8 / 30→11 / 33k→480k / 3→2 周 / 2h→3min / 1,000+),每个写下口径、测法、份额三行;⑤ 扫 IXL 官方 blog + MyTutor 收购新闻(30 分钟封顶);⑥ **亲手用 IXL.com 30–45 分钟**(试几个 practice skills,感受 SmartScore/自适应循环)——记 2–3 个**正面**观察,支撑 Q14 的 "I went hands-on";全程不形成任何"改进意见"。
 **周日(练交付)**:① 出声排练全部短答,**计时 45 秒,练"停"**;② 模拟追问(喊我 mock,我扮 Joe 按他的风格追问细节);③ **忘词规则**:台词是护栏不是圣经——卡住就用更短的词把意思说完,**永远不要为了想起"原句"而卡住**;④ **五个锚句逐字背**(全场唯一需要一字不差的东西):*"The code just can't be wrong."* / *"Kids' data deserves the same care we give money."* / *"AI is a skill I bring, not a thing I need."* / *"I'd rather own the feature than own a layer."* / *"This is a choice, not an escape."*
 **周一**:① 白天正常上班,晚饭吃好;② 6:00 设备检查(摄像头/麦克/网络/安静房间);③ 6:15 扫第 5 节红线清单;④ 6:25 进 Meet 等待。
 
@@ -436,6 +461,8 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 ### 神态
 
 微笑三个必放位置:**开场、他讲话时、收尾**。中间自然就好,不用一直咧嘴。被追问时的表情是"感兴趣",不是"被审问"——眉毛放松,微微点头。说到 Rosetta Stone 故事和 why IXL 时,**让真实的情绪上脸**——这两段你本来就是真心的,别用背书脸糟蹋它们。
+
+**扑克脸预案**(1p3a 实锤:有面试官全程无反应):对方不点头、不回应、面无表情 ≠ 你答砸了——可能是风格、可能是刻意训练。**你的能量不跟随他的反馈波动**:答完照样停、照样微笑,下一题照样稳。别为了"暖场"而加话——那正是言多必失的入口。
 
 ### 肢体(镜头里可见的只有上半身)
 
@@ -469,3 +496,52 @@ portal = 你 "end-to-end + Angular UI" 的实证(JD 的 UI 职责你有真货);C
 ### 最后 60 秒的物理准备(6:29)
 
 肩膀绕两圈放松 → 喝口水 → 深呼吸一次 → 微笑挂上 → 等他进来。记住:**他是人很好的前辈,你是有备而来的同类**——这场对话你有资格享受它。
+
+---
+
+## 9. CTO 轮之后:HR 阶段的杀机与走法(面试在你挂断 Meet 之后并没有结束)
+
+**触点地图**(按面经样本):① 可能**面完 HR 直接 hop on 聊几句**(有先例);② 之后几天的 debrief 电话("聊得怎么样?");③ offer call(先例节奏:CTO 轮后约两周内)。**每一个触点都在继续打分**,尤其前两个。
+
+### 四个杀机与标准应对
+
+| 杀机 | 长什么样 | 你的应对 |
+|---|---|---|
+| **热情检测** | "How do you think it went with Joe?" | 只有一种答案:*"Really well — I enjoyed it a lot, and it made me even more excited."* 永不点评面试官/题目/流程 |
+| **他家探测(实锤杀过人)** | "还在面别家吗?" "别家给 offer 怎么选?" 任何形式、任何时点 | 永远那句:*"IXL is my first choice — if the offer comes, I'm accepting it."* 死者之所以死,是因为答了"这是个重大决定我还没想"——**hedging 一次就够致命** |
+| **薪资探测(offer 前要数字)** | "What are your expectations?" | *"I'm flexible — the posted range looks fair, and with my four-plus years I'd hope to land in the upper part of it. But the role matters most; I'm confident we'll work out the details."*(JD band 是公开的,引用合法;**不先报绝对数**) |
+| **沉默/迟钝** | 你回消息慢、语气平淡 | 等待期的响应速度和温度也是数据——**每封邮件当天回,每通电话热情接** |
+
+### "非他不可" vs 谈判力的矛盾怎么解
+
+你可能已经想到:承诺"offer 来了就接",岂不是没法谈薪了?解法是**承诺角色,不承诺数字**——offer call 上的标准句:
+
+> *"That's fantastic news — thank you! I want to say up front: **I'm planning to accept.** Let me just go over the details carefully and get back to you by ____(1–2 天内的具体日子)."*
+
+"planning to accept" 保住承诺,"review the details" 打开谈判窗——两不误。谈判本身**温和、一轮、基于事实**:① base 往 band 上部靠(理由:4+ 年经验、全栈能力、AI 技能带入);② **relocation assistance**(你的最自然诉求——真实的跨国搬家,开口理直气壮);③ sign-on(如有)。**绝不编造竞争 offer**(不撒谎红线),也不需要——你的谈判筹码是他们已经确认想要你这个事实。
+
+### 周一晚上的例行动作:感谢邮件(面完 1–2 小时内发)
+
+发给 Michaelina(抄 Kevin),请转达 Joe:
+
+```text
+Hi Michaelina,
+
+I just finished the conversation with Joe — thank you for setting it up!
+I really enjoyed it, especially hearing ____(填一个当场聊到的具体话题).
+It made me even more excited about the role — IXL is my first choice,
+and I'm looking forward to the next steps.
+
+Have a great evening!
+
+Best,
+Will
+```
+
+一个具体话题 + 一句承诺,三行结束——这封邮件既是礼貌,也是又一次"热情检测"的主动满分。
+
+### 收尾杂务(offer 到手前后)
+
+- Background check 若要联系现雇主:正常请求一句 *"Please don't contact my current employer until the offer is finalized."*(行业标准,无人见怪)
+- 身份/visa:**现在才是聊它的正确时点**(内推人原话:offer 之后再沟通)——如实、简洁、配合流程
+- Start date:两周 notice + 搬家,给自己留出实际余量,别为了显热情许诺做不到的日期
