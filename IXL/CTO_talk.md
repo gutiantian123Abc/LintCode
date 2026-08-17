@@ -243,6 +243,46 @@ MLK 的孩子大多来自低收入家庭——这是你选那里的原因,也是
 
 守则:上手后的观察**只说正面的**(流畅、即时反馈、题目自适应之类),不带任何 "could be better"——产品建议禁忌覆盖此处。
 
+### Q15. 高频 BQ 总分层(Tech Interview Handbook 30 题 × IXL 情报交叉)
+
+**备考哲学:不背 25 个答案,背 6 个故事 + 路由表。** 任何 BQ 落下来,先想"路由到哪个故事"。
+
+**六个母故事**:A doc-sync(可靠性/事故/调优)· B code-review agent(工具/质量/推动)· C route engine(影响/跨职能/坚持)· D MLK 教书(使命/机会差距)· E Rosetta Stone(学习者)· F 边工作边读 M.S.(毅力/时间管理)
+
+**A 级新缺口的三个补充脚本**:
+
+**Q15a. "Tell me about a mistake you made / hardest bug"**(quality 价值观的反面验证题——他要听的不是你多完美,是你**怎么对待错误**):
+
+> *"Early at Capital One, I ____(周六作业:填一个真实事故——某次改动引出的边界问题/告警遗漏/重试重复处理). We caught it through ____(监控/测试/用户报告). I owned it right away, fixed it, and then added ____(防线:一条测试/一个告警/一个幂等检查). The real change was in me: since then, every time I ____(写重试就先问幂等 之类的习惯). A mistake you learn from becomes a guardrail."*
+
+结构铁律:**事故真实、立刻认领、修复 + 防线、习惯改变**。绝不选"其实不算错"的假谦虚故事,也绝不选造成重大损失的故事——中等体量、学到东西的那种。
+
+**Q15b. "最有价值的一次 criticism?"**(cooperation/communication 的正面验证):
+
+> *"Early in my career, a senior engineer reviewed my code and told me: 'Clever is expensive.' I was proud of my smart one-liners. He showed me the boring version — the one anyone could change safely. It stung for a day. Now it's my own first rule, and it's how I try to review others: teach, don't gatekeep."*
+
+(可按真实记忆改人改事,但保住骨架:**被批评 → 短暂刺痛 → 变成自己的原则 → 再传给别人**——最后一步是这个答案的灵魂。)
+
+**Q15c. "入职头六个月你想达成什么?"**:
+
+> *"Three things. **Learn** — get to know the codebase properly, with respect; it's been running the business for years. **Contribute** — ship small wins early: bug fixes, tests, tooling. Earn trust through work, not words. And by month six, **own** — take real ownership of one piece of the platform, end to end. Learn, contribute, own."*
+
+**B 级路由表(不新写,现场路由)**:
+
+| 高频题 | 路由 |
+|---|---|
+| What frustrates you? | Q13-not-enjoy 的"流程缺口"版(**千万别答"开会多/流程烦"**——Joe 是 processes 人);收在"所以我动手修流程" |
+| 坚持了几个月的事? | **F:边工作边读完 M.S.**(把时间线讲成毅力故事)或 C:route engine 的多月打磨 |
+| Push 过什么想法? | B:code-review agent 从怀疑到全组采用 |
+| 多 deadline 怎么排? | C:Seek Now 短周期 + 与 product/ops 对齐 —— "impact 排序 + 提前沟通"(Glassdoor 显示 IXL 真问过此题) |
+| 快速学新东西? | 简历实锤:评估并引入 LLM 技术——"评估 → 小范围原型 → 保守上线"(顺带展示 AI 谨慎姿态) |
+| 同事会怎么形容你? | "Reliable, calm, easy to ask" + mentor 线一句 |
+| 你的弱点? | 安全真话:*"I used to grind on problems alone too long before asking. I've learned to timebox — try hard for an hour, then ask with context."*(恰好贴互助文化) |
+| Best day of work? | 一句:*"Tests green, something shipped, and someone — a teammate or a user — is better off because of it."* |
+| 和 manager 有分歧? | Q9 模板 + 周六备一个真实小实例 |
+
+**C 级(不投入)**:假想年度评审、无授权影响力深挖、strengths 单列——现有材料顺手覆盖。
+
 ---
 
 ## 3. 你问 Joe 的问题库(重头戏,Kevin 单独点名)
