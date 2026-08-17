@@ -411,16 +411,52 @@ Joe 人好——这题把"当前辈"的机会递给他,junior 问出来真诚不
 
 **总原则**:简历上每个**加粗数字**都是一个"请追问我"的按钮。每个数字必须能答三件事:**口径**(这个数怎么定义)、**测法**(怎么得出的)、**份额**(多少是你的贡献、多少是团队/业务)。第三件答不干脆的数字,主动降格("it was a team effort — my part was ___")远比被挖穿体面。
 
-### A. Capital One · document-sync service(**推荐的 Q5 主故事**)
+### A. Capital One · document-sync / 每日对账(**Q5 主故事,真实内容已到位,三层完整版**)
 
-选它当主故事的理由:多存储一致性 + 重试/幂等 + 监控与调优——和 Core Technology 的平台工作同类,也和你最熟的领域(一致性、防重、防线思维)完全同域。
+**故事的灵魂一句**:这是一个**每日不变量检查器**——不变量 = "所有数据源对同一配置必须一致";job 每天找出违反点,精确到字段。讲它 = 你 Q4 第一原则的生产实例。
 
-| 预测追问 | 你要备好的 |
+**表层:60–75 秒口语版(背熟)**
+
+> *"Sure. The problem: our credit card policies and configs live in several data sources, owned by different teams. Changes were announced on Slack — and sometimes missed. So the same config would drift apart across sources, and things broke downstream.*
+> *My fix was a daily reconciliation job. Every morning it pulls the config files from every source into one place on S3, normalizes the different formats into one structure, and does a recursive, field-by-field comparison. Then it publishes a report: which source, which file, which field disagrees.*
+> *Changes are usually one or two fields, so the team fixes them in minutes each morning. After a few months we measured it: misalignment down about 36 percent, and far fewer production issues from config drift.*
+> *The way I think about it: it's a **daily invariant check** — every source must agree. The job doesn't prevent drift; it **shrinks how long drift can live**."*
+
+(最后一句同时铺好"剩下 64%"和升级路径两条后路。)
+
+**第二层:每个决策的 why(Joe 追问的主战场)**
+
+| 追问 | 你的答案 |
 |---|---|
-| "misalignment 降 36% ——怎么定义、怎么测?" | 什么算一次 misalignment、baseline 是多少、36% 是怎么统计出来的、**剩下 64% 为什么还在**(答得出剩余部分 = 真做过) |
-| "S3 / Cassandra / DocumentDB / OneLake 四个存储,谁是 source of truth?冲突怎么解?" | 写入顺序、对账思路——你的"账本为事实"知识直接迁移 |
-| "retry 怎么保证不重复处理?" | 幂等键/去重——你是这题的专业户,答出 "retries are safe because ___" |
-| "on-call 最糟的一次 incident?" | 备一个 45 秒事故故事,落点在"之后加了什么防线",不在"多惨" |
+| "为什么每天 cron,不做事件驱动?" | *"The sources belong to different teams — I can't put hooks in all of them. A daily pull needs nothing from anyone, covers everything, and bounds staleness to one day. Event-driven is the natural next step — start simple, prove value first."*(baseline → 升级路径,你的招牌节奏) |
+| "为什么手动修,不自动修?" | *"The diff tells you sources **disagree** — it can't tell you which one is **right**. That's a policy question, a human question. Auto-fix could push the wrong value everywhere at machine speed. So: **detection automated, repair deliberate.** In a bank, that's the right trade."*(判断力金句;与 IXL 对儿童数据的保守是同一种敬畏) |
+| "为什么先归一化再比?" | *"Different formats — raw comparison gives you noise. Normalize once into one canonical structure, and a single diff algorithm works for every pair."* |
+| "哪个源是 source of truth?" | 按事实答(通常 = 该 policy 的 owner 团队);"谁对"需要 owner 裁决,这正是手动修的原因——两个答案互相支撑 |
+
+**第三层:细节弹药(周六按事实填)**
+
+- **递归对比的坑**:无序集合先排序、类型归一("1" vs 1)、时间戳/元数据进忽略名单——否则**误报**淹没真报。若你真踩过误报的坑,是绝佳迭代小故事,填:____
+- **36% 的口径**(必答项):怎么算一次 misalignment、对比时间窗(上线前 N 月 vs 后 N 月)、大概的绝对数字:____
+- **剩下 64% 为什么还在**:① 检测不是预防——根因(各团队独立改配置)仍在,job 只是把漂移存活时间从"数周"压到"一天内";② 覆盖面(未接入的源/配置类型);③ 人工修复延迟。答得出这条 = 真做过
+- **谁监控监控者**:job 自己没跑就告警(watchdog),一句带过
+- **敏感性**:credit card policy 文件的访问控制,一句带过
+- **on-call 最糟 incident**:仍备一个 45 秒事故故事(可与 Q15a 复用),落点在"之后加了什么防线"
+
+**⚠️ 简历一致性(周六必做)**:简历写 "automated **retry and remediation** workflows (Lambda, SQS)",口述故事是"report + 手动修"——必须统一成一张图:**传输层失败自动重试/修复(Lambda/SQS),语义层配置分歧由对账检测、人来裁决**——"自动修'传输坏了',人修'内容分歧'"。确保简历上每个名词(ECS / REST / Cassandra / DocumentDB / OneLake / Lambda / SQS)你都能指出它在图中的位置。(你的深挖 Q6 已经把这条答圆了——backoff 重试 → DLQ → PagerDuty → 单源失败不阻塞,正是"传输层自动化"。)
+
+**深挖七连答(口语英文版,基于你的真实版本 + 两处补丁)**
+
+| # | 追问 | 口语英文答案 |
+|---|---|---|
+| 1 | 项目解决什么问题? | 用表层 60 秒 STAR 的前两段即可 |
+| 2 | 怎么拉取和对比? | *"Every morning a cron job pulls the config files from each source through our internal Exchange service into one S3 location. They're all JSON, but the **schemas differ** — so I map them into one canonical structure first. Then a recursive function walks the tree and compares node by node."*(⚠️ 口径统一:"格式不同"= schema 不同,别一处说格式一处说都是 JSON) |
+| 3 | JSON 层级很深怎么办? | *"The function checks each node's type — primitive, object, or array — and handles each case. And it carries the full path as it recurses — like `policy.rules[2].limit` — so even five levels deep, the report points at the exact field."* |
+| 3+ | **(补丁)数组顺序不同、内容相同呢?** | 备一句按事实:有序数组按下标比;集合型数组先排序/按 key 匹配。若真踩过顺序误报的坑 → 顺势讲那个迭代小故事 |
+| 4 | 十个源怎么比?两两吗? | *"Not pairwise — that's N-squared and messy. I designate one source as the **baseline** — the one where changes originate — and compare every other source against it. N minus one comparisons, and the report groups cleanly by source."* |
+| 4+ | **(真洞补丁)有基准为什么不自动修?** | *"The baseline tells me **where** they differ — a human still confirms the **direction**. Sometimes the replica is behind. But sometimes the baseline itself is the stale one, or the diff is an in-flight rollout that hasn't propagated yet. Auto-fixing would push the wrong value — or fight a rollout — at machine speed. For credit card policy, that's not a risk worth taking. Detection automated, repair deliberate."* |
+| 5 | report 长什么样? | *"A Markdown report: the config path, which source disagrees, the current value, and the baseline value. The team opens it each morning and knows exactly what to fix in minutes."*(+ 一句按事实:report 发到哪——Slack 频道/邮件) |
+| 6 | retry/remediation 怎么实现的? | *"When a source's API is slow or failing, I retry with exponential backoff. If it still fails, that task goes to an SQS dead-letter queue and PagerDuty alerts the team. And one failing source never blocks the rest — every other comparison still runs that morning."*(备一句 DLQ 后续:源恢复后重放,按事实) |
+| 7 | **36% 怎么统计的?(真洞:baseline 从哪来)** | 三选一按事实钉死:(a) *"We ran it in report-only mode for the first few weeks to establish the baseline, then turned on the fix workflow"*;(b) baseline = 之前的 misalignment 工单/投诉数(口径变为"事故数降 36%");(c) 历史快照回溯。**周六必须选定一个真实版本,一句话说死**——"工具上线前哪来的'之前'数字"是 Joe 式追问的典型形状 |
 
 ### B. Capital One · knowledge assistant(25,000 queries/day)
 
